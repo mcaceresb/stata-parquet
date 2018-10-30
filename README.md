@@ -3,9 +3,9 @@ stata-parquet
 
 Read and write parquet files from Stata (Linux/Unix only).
 
-This package uses the Apache Arrow C++ library to read and write parquet
-files from Stata using plugins. Currently this package is only available
-in Stata for Unix (Linux).
+This package uses the [Apache Arrow](https://github.com/apache/arrow)
+C++ library to read and write parquet files from Stata using plugins.
+Currently this package is only available in Stata for Unix (Linux).
 
 `version 0.1.0 30Oct2018`
 
@@ -15,31 +15,34 @@ Installation
 You need to install the Apache Arrow C++ library. In particular you will
 need to install
 
-- `libarrow.so.12`
-- `libparquet.so.12`
+- `libarrow.so`
+- `libparquet.so`
 
-Suppose they are in `/usr/local/lib64` (which is the case for me). You
-must start stata with either
-
-```bash
-export LD_LIBRARY_PATH=/usr/local/lib64
-stata
-```
-
-or
+as well as the appropriate headers (see the
+[here](https://github.com/apache/arrow/tree/master/cpp) for installation
+instructions). I installed the libraries in `/usr/local/lib64` and the
+headers in `/usr/local/include`. Given that, you can run
 
 ```bash
-LD_LIBRARY_PATH=/usr/local/lib64 stata
-```
-
-Then, from your stata session (13.1 and above only), run
-```stata
-local github "https://raw.githubusercontent.com"
-net install parquet, from(`github'/mcaceresb/stata-parquet/master/build/)
+git clone https://github.com/mcaceresb/stata-parquet
+cd stata-parquet
+make INCLUDE=-I/usr/local/include LIBS=-L/usr/local/lib64
+stata -b "net install parquet, from(${PWD}/build) replace"
 ```
 
 Usage
 -----
+
+Be sure to start Stata via
+```bash
+LD_LIBRARY_PATH=/usr/local/lib64 stata
+```
+
+Where `/usr/local/lib64` should be the folder where `libarrow.so`
+and `libparquet.so` are installed. (You can also run `export
+LD_LIBRARY_PATH=/usr/local/lib64` before each session or add
+`/usr/local/lib64` to `LD_LIBRARY_PATH` in your `~/.bashrc`.)
+Then, from stata
 
 ```stata
 sysuse auto
@@ -61,11 +64,6 @@ This is an alpha release and there are several important limitations:
   they have no direct Stata counterpart, as best I know.
 
 See the TODO section for more.
-
-Compiling
----------
-
-__*Pending*__
 
 TODO
 ----
@@ -89,3 +87,10 @@ Adequately deal with (or warn the user about):
 Improve:
 
 - [ ] Best way to transpose from column order to row order
+
+LICENSE
+-------
+
+`stata-parquet` is [MIT-licensed](https://github.com/mcaceresb/stata-parquet/blob/master/LICENSE).
+
+Apache Arrow and its various components, in particular all the files under `lib/arrow` are [Apache-licensed](https://github.com/apache/arrow/blob/master/LICENSE.txt) and belong to their respective authors.
