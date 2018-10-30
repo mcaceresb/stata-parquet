@@ -1,3 +1,13 @@
+// Declare all the values;
+// bool vbool;
+// int32_t vint32;
+// int64_t vint64;
+// parquet::Int96 vint96;
+// float vfloat;
+// double vdouble;
+// parquet::ByteArray vbytearray;
+// parquet::FixedLenByteArray vfixedlen;
+
 // try {
 //
 //     // Create a ParquetReader instance; get file MetaData
