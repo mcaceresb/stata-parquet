@@ -66,7 +66,8 @@ def main():
     # Relevant files
 
     _ssc = [
-        "parquet.ado"
+        "parquet.ado",
+        "parquet.sthlp"
     ]
 
     _zip = [
@@ -167,8 +168,9 @@ def main():
     _dir = path.join("build", "parquet")
     copy2("changelog.md", _dir)
     copy2(path.join("src", "parquet.pkg"), _dir)
-    copy2(path.join("src", "stata.toc"),   _dir)
+    copy2(path.join("src", "stata.toc"), _dir)
     copy2(path.join("src", "ado", "parquet.ado"), _dir)
+    copy2(path.join("docs", "parquet.sthlp"), _dir)
 
     # Copy files to .zip folder in ./releases
     # ---------------------------------------
