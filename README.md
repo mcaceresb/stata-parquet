@@ -13,19 +13,21 @@ Installation
 ------------
 
 You need to install the Apache Arrow C++ library. In particular you will
-need.
+need to install
 
-- `libarrow.so`
-- `libparquet.so`
+- `libarrow.so.12`
+- `libparquet.so.12`
 
-Installed. Suppose they are in `/usr/local/lib64` (which is the
-case for me). You must start stata with either
+Suppose they are in `/usr/local/lib64` (which is the case for me). You
+must start stata with either
+
 ```bash
 export LD_LIBRARY_PATH=/usr/local/lib64
 stata
 ```
 
-or 
+or
+
 ```bash
 LD_LIBRARY_PATH=/usr/local/lib64 stata
 ```
