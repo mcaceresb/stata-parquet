@@ -1,0 +1,3 @@
+v 0.1.0
+d ..., ...
+p 'PARQUET': Read parquet files into Stata (testing)

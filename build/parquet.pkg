@@ -1,0 +1,20 @@
+v 0.1.0
+d
+d 'PARQUET': Read parquet files into Stata (testing)
+d
+d This package provides a fast C++ implementations of parquet ...
+d
+d KW: plugin
+d KW: parquet
+d KW: ...
+d
+d Requires: Stata version 13.1
+d
+d Author: ...
+d Support: ...
+d
+d Distribution-Date: 20180305
+d
+f parquet.ado
+f parquet.sthlp
+f parquet_unix.plugin
