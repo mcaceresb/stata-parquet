@@ -16,6 +16,13 @@ desc
 l
 parquet save using test-stata2.parquet, replace
 
+* git clone https://github.com/apache/arrow
+* cd arrow/cpp
+* mkdir release
+* cd release
+* cmake .. -DCMAKE_BUILD_TYPE=Release
+* make unittest
+
 * ./build.py --test && tail build/parquet_tests.log
 * export LD_LIBRARY_PATH=/usr/local/lib64
 * LD_LIBRARY_PATH=../lib/arrow stata15-mp
