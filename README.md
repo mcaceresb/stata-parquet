@@ -70,20 +70,20 @@ TODO
 
 Adequately deal with (or warn the user about):
 
-[ ] Variable formats
-[ ] Variable labels
-[ ] Value labels
-[ ] `strL` variables
-[ ] Regular missing values
-[ ] Extended missing values
-[ ] Dataset notes
-[ ] Variable characteristics
-[ ] Option `skip` for columns that are in other formats?
-[ ] No variables (raise error)
-[ ] No obs (raise error)
-[ ] Boolean format from Stata?
-[ ] Automagically detect when ByteArray data are string vs binary? `str#` vs `strL`.
+- [ ] Variable formats
+- [ ] Variable labels
+- [ ] Value labels
+- [ ] `strL` variables
+- [ ] Regular missing values
+- [ ] Extended missing values
+- [ ] Dataset notes
+- [ ] Variable characteristics
+- [ ] Option `skip` for columns that are in other formats?
+- [ ] No variables (raise error)
+- [ ] No obs (raise error)
+- [ ] Boolean format from Stata?
+- [ ] Automagically detect when ByteArray data are string vs binary? `str#` vs `strL`.
 
 Improve:
 
-[ ] Best way to transpose from column order to row order
+- [ ] Best way to transpose from column order to row order
