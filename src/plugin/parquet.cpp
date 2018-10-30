@@ -1,3 +1,25 @@
+/*********************************************************************
+ * Program: parquet.cpp
+ * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
+ * Created: Fri Mar  3 19:42:00 EDT 2017
+ * Updated: Tue Oct 30 17:46:27 EDT 2018
+ * Purpose: Stata plugin to read and write to the parquet file format
+ * Note:    See stata.com/plugins for more on Stata plugins
+ * Version: 0.1.0
+ *********************************************************************/
+
+/**
+ * @file parquet.cpp
+ * @author Mauricio Caceres Bravo
+ * @date 30 Oct 2018
+ * @brief Stata plugin
+ *
+ * This file should only ever be called from parquet.ado
+ *
+ * @see help parquet
+ * @see http://www.stata.com/plugins for more on Stata plugins
+ */
+
 #include "spi/stplugin.h"
 #include <string.h>
 #include <string>
@@ -21,6 +43,20 @@ const char SPARQUET_WRITER_VERSION[] = "v0.1.0";
 #include "parquet-utils.cpp"
 #include "parquet-reader-ll.cpp"
 #include "parquet-writer-hl.cpp"
+
+// Syntax
+//     plugin call parquet varlist [in], todo file.parquet [file.colnames]
+//
+// Scalars
+// 
+//     __sparquet_nrow
+//     __sparquet_ncol
+//     __sparquet_strbuffer
+//     __sparquet_rg_size
+//
+// Matrices
+//
+//     __sparquet_coltypes
 
 STDLL stata_call(int argc, char *argv[])
 {
@@ -102,8 +138,3 @@ STDLL stata_call(int argc, char *argv[])
 exit:
     return (rc) ;
 }
-
-//./build.py --test && tail build/parquet_tests.log
-// LD_LIBRARY_PATH=/usr/local/lib64
-// import pandas as pd
-// df = pd.read_parquet('test.parquet', engine='pyarrow')

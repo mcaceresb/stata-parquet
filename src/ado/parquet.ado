@@ -1,5 +1,5 @@
-*! version 0.1.0 29Oct2018
-*! Parquet file reader
+*! version 0.1 30Oct2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! Parquet file reader and writer
 
 * Return codes
 * -1:    Parquet library error (see log for details)
@@ -19,10 +19,20 @@ capture program drop parquet
 program parquet
     gettoken todo 0: 0
     if ( inlist(`"`todo'"', "read", "use") ) {
-        parquet_read `0'
+        if ( strpos(`"`0'"', "using") ) {
+            parquet_read `0'
+        }
+        else {
+            parquet_read using `0'
+        }
     }
     else if ( inlist(`"`todo'"', "write", "save") ) {
-        parquet_write `0'
+        if ( strpos(`"`0'"', "using") ) {
+            parquet_write `0'
+        }
+        else {
+            parquet_write using `0'
+        }
     }
     else {
         disp as err `"Unknown sub-comand `todo'"'
@@ -35,7 +45,7 @@ end
 
 capture program drop parquet_read
 program parquet_read
-    syntax using/, [clear]
+    syntax using/, [clear strbuffer(int 255)]
 
     qui desc, short
     if ( `r(changed)' & `"`clear'"' == "" ) {
@@ -47,7 +57,7 @@ program parquet_read
 
     * TODO: All strings are initialized with length strbuffer; fix
 
-    scalar __sparquet_strbuffer = 255
+    scalar __sparquet_strbuffer = `strbuffer'
     scalar __sparquet_nrow      = .
     scalar __sparquet_ncol      = .
     matrix __sparquet_coltypes  = .
@@ -84,6 +94,7 @@ program parquet_read
         exit `rc'
     }
     * scalar list
+    check_matsize, nvars(`=scalar(__sparquet_ncol)')
 
     * Column types
     * ------------
@@ -97,7 +108,7 @@ program parquet_read
     * strL:    #? .?, not yet implemented
 
     tempfile colnames
-    matrix __sparquet_coltypes = J(1, __sparquet_ncol, .)
+    matrix __sparquet_coltypes = J(1, `=scalar(__sparquet_ncol)', .)
     cap noi plugin call parquet_test, coltypes `"`using'"' `"`colnames'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
@@ -180,10 +191,13 @@ end
 
 capture program drop parquet_write
 program parquet_write
-    syntax [varlist] using/ [in], [replace]
+    syntax [varlist] using/ [in], [replace rgsize(real 65536)]
 
+    scalar __sparquet_rg_size   = `rgsize'
     scalar __sparquet_strbuffer = 1
     scalar __sparquet_ncol      = `:list sizeof varlist'
+
+    check_matsize, nvars(`=scalar(__sparquet_ncol)')
     matrix __sparquet_coltypes  = J(1, `=scalar(__sparquet_ncol)', .)
 
     // TODO: Support strL as ByteArray?
@@ -240,14 +254,34 @@ end
 * ---------------------------------------------------------------------
 * Aux functions
 
+* Delete all scalar, matrices, mata objects, which are persistent across
+* programs
 capture program drop clean_exit
 program clean_exit
     cap scalar drop __sparquet_nrow
     cap scalar drop __sparquet_ncol
     cap scalar drop __sparquet_strbuffer
+    cap scalar drop __sparquet_rg_size
     cap matrix drop __sparquet_coltypes
     cap mata: mata drop __sparquet_colnames
     cap mata: mata drop __sparquet_varnames
+end
+
+* Expand matsize if need be
+capture program drop check_matsize
+program check_matsize
+    syntax [anything], [nvars(int 0)]
+    if ( `nvars' == 0 ) local nvars `:list sizeof anything'
+    if ( `nvars' > `c(matsize)' ) {
+        cap set matsize `=`nvars''
+        if ( _rc ) {
+            di as err                                                        ///
+                _n(1) "{bf:# variables > matsize (`nvars' > `c(matsize)').}" ///
+                _n(2) "    {stata set matsize `=`nvars''}"                   ///
+                _n(2) "{bf:failed. Try setting matsize manually.}"
+            exit 908
+        }
+    }
 end
 
 * Pass a list of names obtained from __sparquet_makenames() so all names

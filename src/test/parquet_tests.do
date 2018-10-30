@@ -1,8 +1,3 @@
-disp "Hello from Stata"
-
-* Some test data
-* --------------
-
 clear
 set obs 10
 gen byte   byte1    = _n * 1
@@ -13,10 +8,15 @@ gen double double1  = rnormal()
 gen str32  string32 = "something here"
 desc
 l
-parquet write using test-stata.parquet, replace
+parquet save test-stata.parquet, replace
 
-parquet read using test-stata.parquet, clear
+parquet use test-stata.parquet, clear
 compress
 desc
 l
-parquet write using test-stata2.parquet, replace
+parquet save using test-stata2.parquet, replace
+
+* ./build.py --test && tail build/parquet_tests.log
+* export LD_LIBRARY_PATH=/usr/local/lib64
+* import pandas as pd
+* df = pd.read_parquet('test-stata.parquet')

@@ -1,6 +1,7 @@
 // Stata function: High-level write full varlist
 // __sparquet_ncol must exist and be a numeric scalar with the # of cols
 // __sparquet_coltypes must exist and be a 1 by # col matrix
+// __sparquet_rg_size must exist and be a 1 by # col matrix
 ST_retcode sf_hl_write_varlist(
     const char *fname,
     const char *fcols,
@@ -18,13 +19,22 @@ ST_retcode sf_hl_write_varlist(
     int64_t in1 = SF_in1();
     int64_t in2 = SF_in2();
     int64_t N = in2 - in1 + 1;
-    int64_t vtype, i, j, ncol = 1;
+    int64_t vtype, i, j, ncol = 1, rg_size = 16;
 
     std::string line;
     std::ifstream fstream;
 
     // Get column and type info from Stata
     // -----------------------------------
+
+    memset(vscalar, '\0', 32);
+    memcpy(vscalar, "__sparquet_rg_size", 18);
+    if ( (rc = SF_scal_use(vscalar, &z)) ) {
+        any_rc = rc;
+    }
+    else {
+        rg_size = (int64_t) z;
+    }
 
     memset(vscalar, '\0', 32);
     memcpy(vscalar, "__sparquet_ncol", 15);
@@ -74,7 +84,7 @@ ST_retcode sf_hl_write_varlist(
     try {
         for (j = 0; j < ncol; j++) {
             vtype = vtypes[j];
-            // sf_printf_debug(2, "col %ld: %ld\n", j, vtype);
+            // sf_printf_debug(2, "col %ld: %ld (%s)\n", j, vtype, vnames[j].c_str());
             // TODO: Boolean is only 0/1; keep? Or always int32?
             if ( vtype == -1 ) {
                 arrow::BooleanBuilder boolbuilder;
@@ -101,7 +111,7 @@ ST_retcode sf_hl_write_varlist(
                     PARQUET_THROW_NOT_OK(i32builder.Append((int32_t) z));
                 }
                 PARQUET_THROW_NOT_OK(i32builder.Finish(&varrays[j]));
-                vfields[j] = arrow::field(vnames[j].c_str(), arrow::int64());
+                vfields[j] = arrow::field(vnames[j].c_str(), arrow::int32());
             }
             else if ( vtype == -4 ) {
                 arrow::FloatBuilder f32builder;
@@ -113,6 +123,7 @@ ST_retcode sf_hl_write_varlist(
                 vfields[j] = arrow::field(vnames[j].c_str(), arrow::float32());
             }
             else if ( vtype == -5 ) {
+                arrow::FloatBuilder f32builder;
                 arrow::DoubleBuilder f64builder;
                 for (i = 0; i < N; i++) {
                     if ( (rc = SF_vdata(j + 1, i + in1, &z)) ) goto exit;
@@ -136,11 +147,14 @@ ST_retcode sf_hl_write_varlist(
         std::shared_ptr<arrow::Schema> schema = arrow::schema(vfields);
         std::shared_ptr<arrow::Table> table = arrow::Table::Make(schema, varrays);
 
+        // rg_size is, according to the source files, supposed to be
+        // really large and controls how the file gets split.
+
         std::shared_ptr<arrow::io::FileOutputStream> outfile;
         PARQUET_THROW_NOT_OK(
                 arrow::io::FileOutputStream::Open(fname, &outfile));
         PARQUET_THROW_NOT_OK(
-                parquet::arrow::WriteTable(*table, arrow::default_memory_pool(), outfile, 3));
+                parquet::arrow::WriteTable(*table, arrow::default_memory_pool(), outfile, rg_size));
 
         sf_printf_debug(verbose, "Wrote to file: %s\n", fname);
         sf_printf_debug(verbose, "\t%ld columns\n", ncol);
