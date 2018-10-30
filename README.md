@@ -47,7 +47,7 @@ Then, from stata
 ```stata
 sysuse auto
 parquet save auto.parquet, replace
-parquet use auto.parquet,  clear
+parquet use auto.parquet, clear
 compress
 desc
 ```
@@ -92,5 +92,3 @@ LICENSE
 -------
 
 `stata-parquet` is [MIT-licensed](https://github.com/mcaceresb/stata-parquet/blob/master/LICENSE).
-
-Apache Arrow and its various components, in particular all the files under `lib/arrow` are [Apache-licensed](https://github.com/apache/arrow/blob/master/LICENSE.txt) and belong to their respective authors.
