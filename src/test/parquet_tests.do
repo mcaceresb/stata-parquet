@@ -9,11 +9,11 @@ gen double x2 = rnormal()
 gen long   l1 = 100 * int(runiform())
 parquet save tmp.parquet, replace
 save tmp, replace
-* * export delimited using "tmp.csv", replace
-*
-* use tmp.dta, clear
-* parquet read tmp.parquet, clear
-* * import delimited using "tmp.csv", clear varn(1)
+* export delimited using "tmp.csv", replace
+
+use tmp.dta, clear
+parquet read tmp.parquet, clear
+* import delimited using "tmp.csv", clear varn(1)
 
 * Basic
 * -----
@@ -28,7 +28,7 @@ gen double double1  = rnormal()
 gen str32  string32 = "something here"
 desc
 l
-parquet save test-stata.parquet, replace
+parquet save test-stata.parquet, replace lowlevel fixedlen
 
 parquet use test-stata.parquet, clear
 compress

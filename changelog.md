@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+## parquet-0.3.0 (2018-10-31)
+
+### Features
+
+- Some FixedLen variable support using the low-level reader and writer.
+
 ## parquet-0.2.0 (2018-10-30)
 
 ### Bug fixes
