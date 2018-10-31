@@ -20,6 +20,7 @@ ST_retcode sf_hl_write_varlist(
     int64_t in2 = SF_in2();
     int64_t N = in2 - in1 + 1;
     int64_t vtype, i, j, ncol = 1, rg_size = 16;
+    clock_t timer = clock();
 
     std::string line;
     std::ifstream fstream;
@@ -82,6 +83,7 @@ ST_retcode sf_hl_write_varlist(
     // ---------------------
 
     try {
+        timer = clock();
         for (j = 0; j < ncol; j++) {
             vtype = vtypes[j];
             // sf_printf_debug(2, "col %ld: %ld (%s)\n", j, vtype, vnames[j].c_str());
@@ -143,6 +145,7 @@ ST_retcode sf_hl_write_varlist(
                 vfields[j] = arrow::field(vnames[j].c_str(), arrow::utf8());
             }
         }
+        sf_running_timer (&timer, "Read data into Arrow table");
 
         std::shared_ptr<arrow::Schema> schema = arrow::schema(vfields);
         std::shared_ptr<arrow::Table> table = arrow::Table::Make(schema, varrays);
@@ -156,7 +159,8 @@ ST_retcode sf_hl_write_varlist(
         PARQUET_THROW_NOT_OK(
                 parquet::arrow::WriteTable(*table, arrow::default_memory_pool(), outfile, rg_size));
 
-        sf_printf_debug(verbose, "Wrote to file: %s\n", fname);
+        sf_running_timer (&timer, "Wrote table to file");
+        sf_printf_debug(verbose, "\t%s\n", fname);
         sf_printf_debug(verbose, "\t%ld columns\n", ncol);
         sf_printf_debug(verbose, "\t%ld rows\n", N);
 

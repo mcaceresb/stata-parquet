@@ -36,6 +36,14 @@ void sf_errprintf (const char *fmt, ...)
     va_end (args);
 }
 
+void sf_running_timer (clock_t *timer, const char *msg)
+{
+    double diff  = (double) (clock() - *timer) / CLOCKS_PER_SEC;
+    sf_printf (msg);
+    sf_printf ("; %.3f seconds.\n", diff);
+    *timer = clock();
+}
+
 #define SPARQUET_CHAR(cvar, len)    \
     char *cvar = new char[len]; \
     memset (cvar, '\0', sizeof(char) * len)

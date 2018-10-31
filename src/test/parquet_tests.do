@@ -1,14 +1,14 @@
 * Benchmarks
 * ----------
 
-* set rmsg on
-* clear
-* set obs 2000000
-* gen float  x1 = runiform()
-* gen double x2 = rnormal()
-* gen long   l1 = 100 * int(runiform())
-* save tmp, replace
-* parquet save tmp.parquet, replace rgsize(`=_N')
+set rmsg on
+clear
+set obs 10000000
+gen float  x1 = runiform()
+gen double x2 = rnormal()
+gen long   l1 = 100 * int(runiform())
+parquet save tmp.parquet, replace rgsize(`=_N')
+save tmp, replace
 * * export delimited using "tmp.csv", replace
 *
 * use tmp.dta, clear
