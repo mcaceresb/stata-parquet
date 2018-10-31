@@ -11,7 +11,7 @@ conda create -n stata-parquet -c conda-forge icu arrow-cpp parquet-cpp boost gcc
 ```bash
 ENV=/home/mauricio/bulk/programs/miniconda3/envs/stata-parquet
 ENV=/homes/nber/caceres/anaconda3/envs/stata-parquet
-PATH=${ENV}/bin:$PATH ./build.py --make-flags="GCC=${ENV}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${ENV}/include LIBS=-L${ENV}/lib"
+PATH=${ENV}/bin:$PATH ./build.py --make-flags="GCC=${ENV}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${ENV}/include LIBS=-L${ENV}/lib" --replace
 cd build
 LD_LIBRARY_PATH=${ENV}/lib stata -b do parquet_tests
 tail -n100 parquet_tests.log
