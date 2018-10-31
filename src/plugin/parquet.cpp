@@ -42,6 +42,7 @@ const char SPARQUET_WRITER_VERSION[] = "v0.2.0";
 #include "parquet-utils.cpp"
 #include "parquet-reader-ll.cpp"
 #include "parquet-writer-hl.cpp"
+#include "parquet-reader-hl.cpp"
 
 // Syntax
 //     plugin call parquet varlist [in], todo file.parquet [file.colnames]
@@ -112,6 +113,7 @@ STDLL stata_call(int argc, char *argv[])
         strbuffer = (size_t) z;
 
         sf_printf_debug(VERBOSE, "Stata Parquet Reader %s\n", SPARQUET_READER_VERSION);
+        // if ( (rc = sf_hl_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
         if ( (rc = sf_ll_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
     }
     else if ( strcmp(todo, "write") == 0 ) {

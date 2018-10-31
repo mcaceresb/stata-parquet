@@ -174,16 +174,15 @@ program parquet_read
     local cnames `r(varlist)'
 
     * TODO: Actually implement in range // 2018-10-31 01:01 EDT
+    if ( `"`infrom'"' == "" ) local infrom 1
+    if ( `"`into'"'   == "" ) local into `=scalar(__sparquet_nrow)'
     if ( `"`in'"' != "" ) {
-        if ( `"`infrom'"' == "" ) local infrom 1
-        if ( `"`into'"'   == "" ) local into `=scalar(__sparquet_nrow)'
         if ( `infrom' < 0 ) {
             local infrom = `into' + `infrom'
         }
         disp as err "Option in() not yet implemented."
         exit 17042
     }
-
     if ( `into' > `=scalar(__sparquet_nrow)' ) {
         disp as err "Tried to read until row `into' but data had `=scalar(__sparquet_nrow)' rows."
         exit 198
@@ -191,7 +190,7 @@ program parquet_read
 
     * TODO: Figure out how to map arbitrary strings into unique stata variable names
     clear
-    set obs `=`infrom''
+    set obs `=`into'-`infrom'+1'
     mata: (void) st_addvar(tokens("`ctypes'"), tokens("`cnames'"))
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
         mata: st_local("vlabel", __sparquet_colnames[`j'])

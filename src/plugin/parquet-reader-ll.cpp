@@ -8,6 +8,7 @@ ST_retcode sf_ll_read_varlist(
     ST_retcode rc = 0;
     int64_t nrow_groups, nrow, ncol, r, i, j;
     int64_t values_read, rows_read, ix, ig;
+    clock_t timer = clock();
     SPARQUET_CHAR (vstr, strbuffer);
 
     // Declare all the value types
@@ -167,6 +168,7 @@ ST_retcode sf_ll_read_varlist(
                 ig = i > ig? i: ig;
             }
         }
+        sf_running_timer (&timer, "Read data from disk into Stata");
 
     } catch (const std::exception& e) {
         sf_errprintf("Parquet read error: %s\n", e.what());

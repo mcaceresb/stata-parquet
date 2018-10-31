@@ -7,16 +7,14 @@ set obs 10000000
 gen float  x1 = runiform()
 gen double x2 = rnormal()
 gen long   l1 = 100 * int(runiform())
+parquet save x2 using tmp.parquet, replace
 parquet save tmp.parquet, replace
-!date
-parquet save x2 using tmp.parquet in 1/1000000, replace
-!date
 save tmp, replace
-* * export delimited using "tmp.csv", replace
-*
-* use tmp.dta, clear
-* parquet read tmp.parquet, clear
-* * import delimited using "tmp.csv", clear varn(1)
+* export delimited using "tmp.csv", replace
+
+use tmp.dta, clear
+parquet read tmp.parquet, clear
+* import delimited using "tmp.csv", clear varn(1)
 
 * Basic
 * -----
