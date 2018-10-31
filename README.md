@@ -12,38 +12,39 @@ Currently this package is only available in Stata for Unix (Linux).
 Installation
 ------------
 
-You need to install the Apache Arrow C++ library. In particular you will
-need to install
-
-- `libarrow.so`
-- `libparquet.so`
-
-as well as the appropriate headers. The easiest way to do that is via
-`conda` (see [here](https://conda.io/docs/user-guide/install/index.html)
-for insttructions on installing Anaconda):
+You need to first install the Apache Arrow C++ library. The easiest way to do
+that is via `conda` (see
+[here](https://conda.io/docs/user-guide/install/index.html) for instructions on
+installing Anaconda):
 ```bash
-conda create -n stata-parquet -c conda-forge icu arrow-cpp parquet-cpp boost gcc -y
-ENV=/path/to/anaconda/envs/stata-parquet
-
 git clone https://github.com/mcaceresb/stata-parquet
 cd stata-parquet
-make GCC=${ENV}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${ENV}/include LIBS=-L${ENV}/lib all copy zip
+conda env create -f environment.yml
+source activate stata-parquet
+
+make GCC=${CONDA_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${CONDA_PREFIX}/include LIBS=-L${CONDA_PREFIX}/lib all copy zip
 stata -b "net install parquet, from(${PWD}/build) replace"
 ```
 
 Usage
 -----
 
-Be sure to start Stata via
-```bash
-LD_LIBRARY_PATH=/usr/local/lib64 stata
+Activate the Conda environment with
+
+```
+source activate stata-parquet
 ```
 
-Where `/usr/local/lib64` should be the folder where `libarrow.so`
-and `libparquet.so` are installed. (You can also run `export
-LD_LIBRARY_PATH=/usr/local/lib64` before each session or add
-`/usr/local/lib64` to `LD_LIBRARY_PATH` in your `~/.bashrc`.)
-Then, from stata
+Then be sure to start Stata via
+```bash
+LD_LIBRARY_PATH=${CONDA_PREFIX}/lib xstata
+```
+
+(You could also run `export LD_LIBRARY_PATH=${CONDA_PREFIX}/lib` before each
+session or add `${CONDA_PREFIX}/lib` to `LD_LIBRARY_PATH` in your `~/.bashrc`.
+In both of these examples, make sure to replace `${CONDA_PREFIX}` with the
+absolute path it represents.)
+Then, from Stata
 
 ```stata
 sysuse auto
