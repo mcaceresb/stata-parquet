@@ -12,17 +12,21 @@ Currently this package is only available in Stata for Unix (Linux).
 Installation
 ------------
 
-You need to first install the Apache Arrow C++ library. The easiest way to do
-that is via `conda` (see
-[here](https://conda.io/docs/user-guide/install/index.html) for instructions on
-installing Anaconda):
+
+You need to first install:
+
+- The Apache Arrow C++ library.
+- The GNU Compiler Collection
+- The boost C++ libraries.
+
+The easiest way to do that is via `conda` (see [here](https://conda.io/docs/user-guide/install/index.html) for instructions on installing Anaconda):
 ```bash
 git clone https://github.com/mcaceresb/stata-parquet
 cd stata-parquet
 conda env create -f environment.yml
 source activate stata-parquet
 
-make GCC=${CONDA_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${CONDA_PREFIX}/include LIBS=-L${CONDA_PREFIX}/lib all copy zip
+make GCC=${CONDA_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${CONDA_PREFIX}/include LIBS=-L${CONDA_PREFIX}/lib all copy
 stata -b "net install parquet, from(${PWD}/build) replace"
 ```
 
@@ -43,8 +47,7 @@ LD_LIBRARY_PATH=${CONDA_PREFIX}/lib xstata
 (You could also run `export LD_LIBRARY_PATH=${CONDA_PREFIX}/lib` before each
 session or add `${CONDA_PREFIX}/lib` to `LD_LIBRARY_PATH` in your `~/.bashrc`.
 In both of these examples, make sure to replace `${CONDA_PREFIX}` with the
-absolute path it represents.)
-Then, from Stata
+absolute path it represents.) Then, from Stata
 
 ```stata
 sysuse auto
