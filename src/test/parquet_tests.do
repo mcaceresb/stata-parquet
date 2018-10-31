@@ -8,6 +8,9 @@ gen float  x1 = runiform()
 gen double x2 = rnormal()
 gen long   l1 = 100 * int(runiform())
 parquet save tmp.parquet, replace
+!date
+parquet save x2 using tmp.parquet in 1/1000000, replace
+!date
 save tmp, replace
 * * export delimited using "tmp.csv", replace
 *

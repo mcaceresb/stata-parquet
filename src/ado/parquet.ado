@@ -45,12 +45,30 @@ end
 
 capture program drop parquet_read
 program parquet_read
-    syntax using/, [clear strbuffer(int 255)]
-
+    * TODO: Parse column selector
+    syntax [anything] using/, [clear in(str) strbuffer(int 255)]
     qui desc, short
     if ( `r(changed)' & `"`clear'"' == "" ) {
         error 4
     }
+
+    * Parse in range
+    * --------------
+
+    gettoken infrom into: in, p(/)
+    gettoken slash into: into, p(/)
+
+    if ( "`infrom'" == "f" ) local infrom 1
+    if ( "`infrom'" !=  "" ) {
+        confirm number `infrom'
+        if ( `infrom' == 0 ) local infrom 1
+        if ( `infrom' < 0 ) {
+            _assert("`into'" == "l"), msg("Cannot read from a negative number")
+        }
+    }
+
+    if ( "`into'" == "l" ) local into
+    if ( "`into'" != "" ) confirm number `into'
 
     * Initialize scalars
     * ------------------
@@ -130,6 +148,7 @@ program parquet_read
 
     * TODO: How to code strL? Even possible?
     * TODO: How to code str#? Get max length of ByteArray?
+    * TODO: How to parse column selector? Closest match?
     local ctypes
     local cnames
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
@@ -154,9 +173,25 @@ program parquet_read
     check_reserved `cnames'
     local cnames `r(varlist)'
 
+    * TODO: Actually implement in range // 2018-10-31 01:01 EDT
+    if ( `"`in'"' != "" ) {
+        if ( `"`infrom'"' == "" ) local infrom 1
+        if ( `"`into'"'   == "" ) local into `=scalar(__sparquet_nrow)'
+        if ( `infrom' < 0 ) {
+            local infrom = `into' + `infrom'
+        }
+        disp as err "Option in() not yet implemented."
+        exit 17042
+    }
+
+    if ( `into' > `=scalar(__sparquet_nrow)' ) {
+        disp as err "Tried to read until row `into' but data had `=scalar(__sparquet_nrow)' rows."
+        exit 198
+    }
+
     * TODO: Figure out how to map arbitrary strings into unique stata variable names
     clear
-    set obs `=scalar(__sparquet_nrow)'
+    set obs `=`infrom''
     mata: (void) st_addvar(tokens("`ctypes'"), tokens("`cnames'"))
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
         mata: st_local("vlabel", __sparquet_colnames[`j'])
@@ -167,7 +202,7 @@ program parquet_read
     * Read parquet file!
     * ------------------
 
-    cap noi plugin call parquet_plugin `cnames', read `"`using'"'
+    cap noi plugin call parquet_plugin `cnames' `in', read `"`using'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
