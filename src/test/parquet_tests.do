@@ -3,7 +3,7 @@
 
 * set rmsg on
 * clear
-* set obs 20000000
+* set obs 2000000
 * gen float  x1 = runiform()
 * gen double x2 = rnormal()
 * gen long   l1 = 100 * int(runiform())

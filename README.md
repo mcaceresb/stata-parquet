@@ -12,17 +12,15 @@ Currently this package is only available in Stata for Unix (Linux).
 Installation
 ------------
 
-You need to install the Apache Arrow C++ library. In particular you will
-need to install
+You need to install:
 
-- `libarrow.so`
-- `libparquet.so`
+- The Apache Arrow C++ library.
+- The GNU Compiler Collection
+- The boost C++ libraries.
 
-as well as the appropriate headers. The easiest way to do that is via
-`conda` (see [here](https://conda.io/docs/user-guide/install/index.html)
-for insttructions on installing Anaconda):
+as well as the appropriate headers. The easiest way get all of this to work as expected is to use `conda` (see [here](https://conda.io/docs/user-guide/install/index.html) for instructions on installing Anaconda):
 ```bash
-conda create -n stata-parquet -c conda-forge icu arrow-cpp parquet-cpp boost gcc -y
+conda create -n stata-parquet -c conda-forge arrow-cpp parquet-cpp boost gcc -y
 ENV=/path/to/anaconda/envs/stata-parquet
 
 git clone https://github.com/mcaceresb/stata-parquet
@@ -36,14 +34,10 @@ Usage
 
 Be sure to start Stata via
 ```bash
-LD_LIBRARY_PATH=/usr/local/lib64 stata
+LD_LIBRARY_PATH=/path/to/anaconda/envs/stata-parquet/ibs stata
 ```
 
-Where `/usr/local/lib64` should be the folder where `libarrow.so`
-and `libparquet.so` are installed. (You can also run `export
-LD_LIBRARY_PATH=/usr/local/lib64` before each session or add
-`/usr/local/lib64` to `LD_LIBRARY_PATH` in your `~/.bashrc`.)
-Then, from stata
+You can also run `export LD_LIBRARY_PATH=/path/to/anaconda/envs/stata-parquet/ibs` before each session or add that line to tour `~/.bashrc`. Then, from stata
 
 ```stata
 sysuse auto
