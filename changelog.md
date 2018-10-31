@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+## parquet-0.2.0 (2018-10-30)
+
+### Bug fixes
+
+- Install from scratch is now working on NBER severs.
+
 ## parquet-0.1.0 (2018-10-30)
 
 ### Features
