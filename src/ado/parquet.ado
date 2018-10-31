@@ -1,4 +1,4 @@
-*! version 0.2.0 30Oct2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.3.0 30Oct2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -75,6 +75,8 @@ program parquet_read
 
     * TODO: All strings are initialized with length strbuffer; fix
 
+    scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
+    scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
     scalar __sparquet_strbuffer = `strbuffer'
     scalar __sparquet_nrow      = .
     scalar __sparquet_ncol      = .
@@ -225,8 +227,18 @@ end
 
 capture program drop parquet_write
 program parquet_write
-    syntax [varlist] using/ [in], [replace rgsize(real 0)]
+    syntax [varlist] using/ [in], [replace rgsize(real 0) lowlevel fixedlen]
 
+    if ( ("`fixedlen'" != "") & ("`lowlevel'" == "") ) {
+        disp as err "Option -fixedlen- requires option -lowlevel-"
+        exit 198
+    }
+    if ( ("`fixedlen'" != "") & ("`lowlevel'" != "") ) {
+        disp as txt "Warning: -fixedlen- will pad strings of varying width."
+    }
+
+    scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
+    scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
     scalar __sparquet_rg_size   = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
     scalar __sparquet_strbuffer = 1
     scalar __sparquet_ncol      = `:list sizeof varlist'
@@ -295,6 +307,8 @@ program clean_exit
     cap scalar drop __sparquet_nrow
     cap scalar drop __sparquet_ncol
     cap scalar drop __sparquet_strbuffer
+    cap scalar drop __sparquet_lowlevel
+    cap scalar drop __sparquet_fixedlen
     cap scalar drop __sparquet_rg_size
     cap matrix drop __sparquet_coltypes
     cap mata: mata drop __sparquet_colnames

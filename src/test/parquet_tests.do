@@ -29,7 +29,7 @@ gen double double1  = rnormal()
 gen str32  string32 = "something here"
 desc
 l
-parquet save test-stata.parquet, replace
+parquet save test-stata.parquet, replace lowlevel fixedlen
 
 parquet use test-stata.parquet, clear
 compress

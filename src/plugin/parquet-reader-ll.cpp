@@ -20,6 +20,7 @@ ST_retcode sf_ll_read_varlist(
     float vfloat;
     double vdouble;
     parquet::ByteArray vbytearray;
+    parquet::FixedLenByteArray vfixedlen;
 
     // Declare all the readers
     // -----------------------
@@ -33,15 +34,13 @@ ST_retcode sf_ll_read_varlist(
     parquet::FloatReader* float_reader;
     parquet::DoubleReader* double_reader;
     parquet::ByteArrayReader* ba_reader;
+    parquet::FixedLenByteArrayReader* flba_reader;
 
     // Not implemented in Stata
     // ------------------------
 
-    // parquet::FixedLenByteArray vfixedlen;
     // parquet::Int96 vint96;
-
     // parquet::Int96Reader* int96_reader;
-    // parquet::FixedLenByteArrayReader* flba_reader;
 
     // File reader
     // -----------
@@ -68,7 +67,9 @@ ST_retcode sf_ll_read_varlist(
         // Loop through each group
         // For each group, loop through each column
         // For each column, loop through each row
+        // TODO: Missing values
 
+        clock_t timer = clock();
         for (r = 0; r < nrow_groups; ++r) {
             values_read = 0;
             rows_read   = 0;
@@ -157,10 +158,24 @@ ST_retcode sf_ll_read_varlist(
                         }
                         break;
                     case Type::FIXED_LEN_BYTE_ARRAY:
-                        sf_errprintf("Fixed-Length ByteArray not implemented.\n");
-                        rc = 17102;
-                        goto exit;
+                        if ( (uint64_t) descr->type_length() > strbuffer ) {
+                            sf_errprintf("Buffer (%d) too small; re-run with larger string buffer.\n", strbuffer);
+                            sf_errprintf("Group %d, row %d, col %d had a string of length %d.\n", r, i + ix, j, descr->type_length());
+                            rc = 17103;
+                            goto exit;
+                        }
+                        flba_reader = static_cast<parquet::FixedLenByteArrayReader*>(column_reader.get());
+                        while (flba_reader->HasNext()) {
+                            rows_read = flba_reader->ReadBatch(1, nullptr, nullptr, &vfixedlen, &values_read);
+                            assert(rows_read == 1);
+                            assert(values_read == 1);
+                            i++;
+                            memcpy(vstr, vfixedlen.ptr, descr->type_length());
+                            if ( (rc = SF_sstore(j + 1, i + ix, vstr)) ) goto exit;
+                            memset(vstr, '\0', strbuffer);
+                        }
                     default:
+                        goto exit;
                         sf_errprintf("Unknown parquet type.\n");
                         rc = 17100;
                         goto exit;

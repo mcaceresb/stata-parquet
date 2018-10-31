@@ -88,6 +88,7 @@ ST_retcode sf_hl_write_varlist(
             vtype = vtypes[j];
             // sf_printf_debug(2, "col %ld: %ld (%s)\n", j, vtype, vnames[j].c_str());
             // TODO: Boolean is only 0/1; keep? Or always int32?
+            // TODO: Missing values
             if ( vtype == -1 ) {
                 arrow::BooleanBuilder boolbuilder;
                 for (i = 0; i < N; i++) {
@@ -134,7 +135,7 @@ ST_retcode sf_hl_write_varlist(
                 PARQUET_THROW_NOT_OK(f64builder.Finish(&varrays[j]));
                 vfields[j] = arrow::field(vnames[j].c_str(), arrow::float64());
             }
-            else {
+            else if ( vtype > 0 ) {
                 arrow::StringBuilder strbuilder;
                 for (i = 0; i < N; i++) {
                     if ( (rc = SF_sdata(j + 1, i + in1, vstr)) ) goto exit;
@@ -143,6 +144,11 @@ ST_retcode sf_hl_write_varlist(
                 }
                 PARQUET_THROW_NOT_OK(strbuilder.Finish(&varrays[j]));
                 vfields[j] = arrow::field(vnames[j].c_str(), arrow::utf8());
+            }
+            else {
+                sf_errprintf("Unsupported type.\n");
+                rc = 17100;
+                goto exit;
             }
         }
         sf_running_timer (&timer, "Copied data from memory into Arrow table");

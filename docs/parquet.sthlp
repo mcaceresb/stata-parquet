@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.2.0 30Oct2018}{...}
+{* *! version 0.3.0 31Oct2018}{...}
 {viewerdialog parquet "dialog parquet"}{...}
 {vieweralsosee "[R] parquet" "mansection R parquet"}{...}
 {viewerjumpto "Syntax" "parquet##syntax"}{...}
