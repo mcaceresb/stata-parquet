@@ -12,32 +12,42 @@ Currently this package is only available in Stata for Unix (Linux).
 Installation
 ------------
 
-You need to install:
+
+You need to first install:
 
 - The Apache Arrow C++ library.
 - The GNU Compiler Collection
 - The boost C++ libraries.
 
-as well as the appropriate headers. The easiest way get all of this to work as expected is to use `conda` (see [here](https://conda.io/docs/user-guide/install/index.html) for instructions on installing Anaconda):
+The easiest way to do that is via `conda` (see [here](https://conda.io/docs/user-guide/install/index.html) for instructions on installing Anaconda):
 ```bash
-conda create -n stata-parquet -c conda-forge arrow-cpp parquet-cpp boost gcc -y
-ENV=/path/to/anaconda/envs/stata-parquet
-
 git clone https://github.com/mcaceresb/stata-parquet
 cd stata-parquet
-make GCC=${ENV}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${ENV}/include LIBS=-L${ENV}/lib all copy zip
+conda env create -f environment.yml
+source activate stata-parquet
+
+make GCC=${CONDA_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${CONDA_PREFIX}/include LIBS=-L${CONDA_PREFIX}/lib all copy
 stata -b "net install parquet, from(${PWD}/build) replace"
 ```
 
 Usage
 -----
 
-Be sure to start Stata via
-```bash
-LD_LIBRARY_PATH=/path/to/anaconda/envs/stata-parquet/ibs stata
+Activate the Conda environment with
+
+```
+source activate stata-parquet
 ```
 
-You can also run `export LD_LIBRARY_PATH=/path/to/anaconda/envs/stata-parquet/ibs` before each session or add that line to tour `~/.bashrc`. Then, from stata
+Then be sure to start Stata via
+```bash
+LD_LIBRARY_PATH=${CONDA_PREFIX}/lib xstata
+```
+
+(You could also run `export LD_LIBRARY_PATH=${CONDA_PREFIX}/lib` before each
+session or add `${CONDA_PREFIX}/lib` to `LD_LIBRARY_PATH` in your `~/.bashrc`.
+In both of these examples, make sure to replace `${CONDA_PREFIX}` with the
+absolute path it represents.) Then, from Stata
 
 ```stata
 sysuse auto

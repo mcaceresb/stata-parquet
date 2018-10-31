@@ -1,0 +1,8 @@
+name: stata-parquet
+channels:
+    - conda-forge
+dependencies:
+    - arrow-cpp
+    - parquet-cpp
+    - boost
+    - gcc
