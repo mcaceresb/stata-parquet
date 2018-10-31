@@ -1,4 +1,4 @@
-*! version 0.1.0 30Oct2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.2.0 30Oct2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -65,7 +65,7 @@ program parquet_read
     * Check plugin loaded OK
     * ----------------------
 
-    cap noi plugin call parquet_test, check `"`using'"'
+    cap noi plugin call parquet_plugin, check `"`using'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
@@ -81,7 +81,7 @@ program parquet_read
     * Number of rows and columns
     * --------------------------
 
-    cap noi plugin call parquet_test, shape `"`using'"'
+    cap noi plugin call parquet_plugin, shape `"`using'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
@@ -109,7 +109,7 @@ program parquet_read
 
     tempfile colnames
     matrix __sparquet_coltypes = J(1, `=scalar(__sparquet_ncol)', .)
-    cap noi plugin call parquet_test, coltypes `"`using'"' `"`colnames'"'
+    cap noi plugin call parquet_plugin, coltypes `"`using'"' `"`colnames'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
@@ -167,7 +167,7 @@ program parquet_read
     * Read parquet file!
     * ------------------
 
-    cap noi plugin call parquet_test `cnames', read `"`using'"'
+    cap noi plugin call parquet_plugin `cnames', read `"`using'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
@@ -237,7 +237,7 @@ program parquet_write
     tempfile colnames
     mata: __sparquet_putcolnames(`"`colnames'"', tokens("`varlist'"))
 
-    cap noi plugin call parquet_test `varlist' `in', write `"`using'"' `"`colnames'"'
+    cap noi plugin call parquet_plugin `varlist' `in', write `"`using'"' `"`colnames'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
@@ -371,5 +371,5 @@ end
 if ( inlist("`c(os)'", "MacOSX") | strpos("`c(machine_type)'", "Mac") ) local c_os_ macosx
 else local c_os_: di lower("`c(os)'")
 
-cap program drop parquet_test
-program parquet_test, plugin using("parquet_`c_os_'.plugin")
+cap program drop parquet_plugin
+program parquet_plugin, plugin using("parquet_`c_os_'.plugin")

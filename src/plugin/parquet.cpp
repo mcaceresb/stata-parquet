@@ -5,7 +5,7 @@
  * Updated: Tue Oct 30 17:46:27 EDT 2018
  * Purpose: Stata plugin to read and write to the parquet file format
  * Note:    See stata.com/plugins for more on Stata plugins
- * Version: 0.1.0
+ * Version: 0.2.0
  *********************************************************************/
 
 /**
@@ -35,8 +35,8 @@
 #define DEBUG     0
 #define VERBOSE   1
 
-const char SPARQUET_READER_VERSION[] = "v0.1.0";
-const char SPARQUET_WRITER_VERSION[] = "v0.1.0";
+const char SPARQUET_READER_VERSION[] = "v0.2.0";
+const char SPARQUET_WRITER_VERSION[] = "v0.2.0";
 
 #include "reader_writer.h"
 #include "parquet.h"

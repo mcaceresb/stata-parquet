@@ -7,7 +7,7 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.1.0 30Oct2018`
+`version 0.2.0 30Oct2018`
 
 Installation
 ------------
@@ -18,15 +18,16 @@ need to install
 - `libarrow.so`
 - `libparquet.so`
 
-as well as the appropriate headers (see the
-[here](https://github.com/apache/arrow/tree/master/cpp) for installation
-instructions). I installed the libraries in `/usr/local/lib64` and the
-headers in `/usr/local/include`. Given that, you can run
-
+as well as the appropriate headers. The easiest way to do that is via
+`conda` (see [here](https://conda.io/docs/user-guide/install/index.html)
+for insttructions on installing Anaconda):
 ```bash
+conda create -n stata-parquet -c conda-forge icu arrow-cpp parquet-cpp boost gcc -y
+ENV=/path/to/anaconda/envs/stata-parquet
+
 git clone https://github.com/mcaceresb/stata-parquet
 cd stata-parquet
-make INCLUDE=-I/usr/local/include LIBS=-L/usr/local/lib64
+make GCC=${ENV}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${ENV}/include LIBS=-L${ENV}/lib all copy zip
 stata -b "net install parquet, from(${PWD}/build) replace"
 ```
 
