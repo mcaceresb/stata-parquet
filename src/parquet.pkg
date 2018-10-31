@@ -17,4 +17,4 @@ d Distribution-Date: 20180305
 d
 f parquet.ado
 f parquet.sthlp
-f parquet_unix.plugin
+f parquet_os.plugin

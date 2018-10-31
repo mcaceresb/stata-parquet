@@ -2,15 +2,19 @@
 # OS parsing
 
 ifeq ($(OS),Windows_NT)
+	OSFLAGS = -shared
+	# GCC = x86_64-w64-mingw32-g++.exe
+	GCC = g++.exe
+	OUT = parquet_windows.plugin
 else
 	UNAME_S := $(shell uname -s)
 	ifeq ($(UNAME_S),Linux)
 		OSFLAGS = -shared -fPIC -DSYSTEM=OPUNIX
-		OUT = build/parquet_unix.plugin
+		OUT = parquet_unix.plugin
 	endif
 	ifeq ($(UNAME_S),Darwin)
 		OSFLAGS = -bundle -DSYSTEM=APPLEMAC
-		OUT = build/parquet_macosx.plugin
+		OUT = parquet_macosx.plugin
 	endif
 	GCC = g++
 endif
@@ -43,7 +47,7 @@ links:
 ## Build parquet plugin
 parquet: src/plugin/parquet.cpp src/plugin/spi/stplugin.cpp
 	mkdir -p ./build
-	$(GCC) $(CFLAGS) -o $(OUT) src/plugin/spi/stplugin.cpp src/plugin/parquet.cpp $(PARQUET)
+	$(GCC) $(CFLAGS) -o build/$(OUT) src/plugin/spi/stplugin.cpp src/plugin/parquet.cpp $(PARQUET)
 	cp build/*plugin lib/plugin/
 
 ## Copy Stata package files to ./build
@@ -56,17 +60,18 @@ copy:
 
 ## Install the Stata package (replace if necessary)
 replace:
+	sed -i.bak 's/parquet_os.plugin/$(OUT)/' build/parquet.pkg
 	cd build/ && $(STATARUN) -b "cap noi net uninstall parquet"
 	cd build/ && $(STATARUN) -b "net install parquet, from(\`\"${PWD}/build\"')"
 
 ## Run tests
 test:
+	cp ./src/test/parquet_tests.do ./build/
 	cd build/ && $(STATARUN) -b do parquet_tests.do
 
 .PHONY: clean
 clean:
-	rm -f $(OUT)
-	rm -rf build/parquet
+	rm -rf build
 
 #######################################################################
 #                                                                     #

@@ -7,7 +7,7 @@ set obs 10000000
 gen float  x1 = runiform()
 gen double x2 = rnormal()
 gen long   l1 = 100 * int(runiform())
-parquet save tmp.parquet, replace rgsize(`=_N')
+parquet save tmp.parquet, replace
 save tmp, replace
 * * export delimited using "tmp.csv", replace
 *

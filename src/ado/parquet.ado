@@ -191,9 +191,9 @@ end
 
 capture program drop parquet_write
 program parquet_write
-    syntax [varlist] using/ [in], [replace rgsize(real 65536)]
+    syntax [varlist] using/ [in], [replace rgsize(real 0)]
 
-    scalar __sparquet_rg_size   = `rgsize'
+    scalar __sparquet_rg_size   = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
     scalar __sparquet_strbuffer = 1
     scalar __sparquet_ncol      = `:list sizeof varlist'
 
