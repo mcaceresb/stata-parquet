@@ -92,10 +92,9 @@ ST_retcode sf_ll_coltypes(
                     // vtypes[j] = SV_missval;
                     vtypes[j] = strbuffer;
                     break;
-                case Type::FIXED_LEN_BYTE_ARRAY:
-                    sf_errprintf("Fixed-Length ByteArray not implemented.\n");
-                    rc = 17102;
-                    goto exit;
+                case Type::FIXED_LEN_BYTE_ARRAY: // str#, strL
+                    vtypes[j] = strbuffer;
+                    break;
                 default:
                     sf_errprintf("Unknown parquet type.\n");
                     rc = 17100;

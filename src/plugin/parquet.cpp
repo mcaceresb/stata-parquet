@@ -2,16 +2,16 @@
  * Program: parquet.cpp
  * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
  * Created: Fri Mar  3 19:42:00 EDT 2017
- * Updated: Tue Oct 30 17:46:27 EDT 2018
+ * Updated: Wed Oct 31 11:19:41 EDT 2018
  * Purpose: Stata plugin to read and write to the parquet file format
  * Note:    See stata.com/plugins for more on Stata plugins
- * Version: 0.2.0
+ * Version: 0.3.0
  *********************************************************************/
 
 /**
  * @file parquet.cpp
  * @author Mauricio Caceres Bravo
- * @date 30 Oct 2018
+ * @date 31 Oct 2018
  * @brief Stata plugin
  *
  * This file should only ever be called from parquet.ado
@@ -34,13 +34,14 @@
 #define DEBUG     0
 #define VERBOSE   1
 
-const char SPARQUET_READER_VERSION[] = "v0.2.0";
-const char SPARQUET_WRITER_VERSION[] = "v0.2.0";
+const char SPARQUET_READER_VERSION[] = "v0.3.0";
+const char SPARQUET_WRITER_VERSION[] = "v0.3.0";
 
 #include "reader_writer.h"
 #include "parquet.h"
 #include "parquet-utils.cpp"
 #include "parquet-reader-ll.cpp"
+#include "parquet-writer-ll.cpp"
 #include "parquet-writer-hl.cpp"
 
 // Syntax
@@ -48,6 +49,8 @@ const char SPARQUET_WRITER_VERSION[] = "v0.2.0";
 //
 // Scalars
 // 
+//     __sparquet_lowlevel
+//     __sparquet_fixedlen
 //     __sparquet_nrow
 //     __sparquet_ncol
 //     __sparquet_strbuffer
@@ -61,7 +64,7 @@ STDLL stata_call(int argc, char *argv[])
 {
     ST_retcode rc = 0;
     ST_double z;
-    size_t flength, strbuffer;
+    size_t flength, strbuffer, lowlevel;
 
     SPARQUET_CHAR(todo, 16);
     strcpy (todo, argv[0]);
@@ -69,6 +72,16 @@ STDLL stata_call(int argc, char *argv[])
     flength = strlen(argv[1]) + 1;
     SPARQUET_CHAR (fname, flength);
     strcpy (fname, argv[1]);
+
+    SPARQUET_CHAR(vscalar, 32);
+    memcpy(vscalar, "__sparquet_strbuffer", 20);
+    if ( (rc = SF_scal_use(vscalar, &z)) ) goto exit;
+    strbuffer = (size_t) z;
+
+    memset(vscalar, '\0', 32);
+    memcpy(vscalar, "__sparquet_lowlevel", 20);
+    if ( (rc = SF_scal_use(vscalar, &z)) ) goto exit;
+    lowlevel = (size_t) z;
 
     /**************************************************************************
      * This is the main wrapper. We apply one of:                             *
@@ -98,19 +111,9 @@ STDLL stata_call(int argc, char *argv[])
         SPARQUET_CHAR (fcols, flength);
         strcpy (fcols, argv[2]);
 
-        SPARQUET_CHAR(vscalar, 32);
-        memcpy(vscalar, "__sparquet_strbuffer", 20);
-        if ( (rc = SF_scal_use(vscalar, &z)) ) goto exit;
-        strbuffer = (size_t) z;
-
         if ( (rc = sf_ll_coltypes(fname, fcols, DEBUG, strbuffer)) ) goto exit;
     }
     else if ( strcmp(todo, "read") == 0 ) {
-        SPARQUET_CHAR(vscalar, 32);
-        memcpy(vscalar, "__sparquet_strbuffer", 20);
-        if ( (rc = SF_scal_use(vscalar, &z)) ) goto exit;
-        strbuffer = (size_t) z;
-
         sf_printf_debug(VERBOSE, "Stata Parquet Reader %s\n", SPARQUET_READER_VERSION);
         if ( (rc = sf_ll_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
     }
@@ -120,13 +123,13 @@ STDLL stata_call(int argc, char *argv[])
         SPARQUET_CHAR (fcols, flength);
         strcpy (fcols, argv[2]);
 
-        SPARQUET_CHAR(vscalar, 32);
-        memcpy(vscalar, "__sparquet_strbuffer", 20);
-        if ( (rc = SF_scal_use(vscalar, &z)) ) goto exit;
-        strbuffer = (size_t) z;
-
         sf_printf_debug(VERBOSE, "Stata Parquet Writer %s\n", SPARQUET_READER_VERSION);
-        if ( (rc = sf_hl_write_varlist(fname, fcols, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+        if ( lowlevel ) {
+            if ( (rc = sf_ll_write_varlist(fname, fcols, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+        }
+        else {
+            if ( (rc = sf_hl_write_varlist(fname, fcols, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+        }
     }
     else {
         sf_printf_debug(VERBOSE, "Nothing to do\n");

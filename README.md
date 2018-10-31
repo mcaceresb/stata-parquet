@@ -7,7 +7,7 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.2.0 30Oct2018`
+`version 0.3.0 31Oct2018`
 
 Installation
 ------------
@@ -62,11 +62,13 @@ Limitations
 
 This is an alpha release and there are several important limitations:
 
+- Missing values (and extended missing values) are not supported. If the
+  data has missing values the import/export might not fail but the values
+  will be wrong.
 - String widths are not read from `.parquet` files. The plugin reads all
   strings in uniform width. Control this via option `strbuffer()`
 - Writing `strL` variables are not supported.
-- Reading `FixedLenByteArray` and `Int96` variables are not supported, as
-  they have no direct Stata counterpart, as best I know.
+- `Int96` variables is not supported, as is has no direct Stata counterpart.
 
 See the TODO section for more.
 

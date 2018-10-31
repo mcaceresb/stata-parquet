@@ -40,7 +40,7 @@ void sf_running_timer (clock_t *timer, const char *msg)
 {
     double diff  = (double) (clock() - *timer) / CLOCKS_PER_SEC;
     sf_printf (msg);
-    sf_printf ("; %.3f seconds.\n", diff);
+    sf_printf (" in %.2f seconds.\n", diff);
     *timer = clock();
 }
 
