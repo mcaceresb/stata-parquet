@@ -21,7 +21,6 @@
  */
 
 #include "spi/stplugin.h"
-#include <string.h>
 #include <string>
 #include <array>
 
