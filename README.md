@@ -26,7 +26,7 @@ cd stata-parquet
 conda env create -f environment.yml
 source activate stata-parquet
 
-make GCC=${CONDA_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=-I${CONDA_PREFIX}/include LIBS=-L${CONDA_PREFIX}/lib all copy
+make GCC=${CONDA_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=${CONDA_PREFIX}/include LIBS=${CONDA_PREFIX}/lib all
 stata -b "net install parquet, from(${PWD}/build) replace"
 ```
 

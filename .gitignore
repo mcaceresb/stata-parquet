@@ -1,3 +1,4 @@
 releases
 *.parquet
 lib/arrow
+build/
