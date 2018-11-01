@@ -5,11 +5,13 @@ ST_retcode sf_ll_read_varlist(
     const int debug,
     const uint64_t strbuffer)
 {
-    ST_retcode rc = 0;
-    int64_t nrow_groups, nrow, ncol, r, i, j;
-    int64_t values_read, rows_read, ix, ig;
-    clock_t timer = clock();
-    SPARQUET_CHAR (vstr, strbuffer);
+    ST_double z;
+    ST_retcode rc = 0, any_rc = 0;
+    int64_t nrow_groups, nrow, ncol, r, i, j, jsel;
+    int64_t maxstrlen, values_read, rows_read, ix, ig;
+
+    SPARQUET_CHAR (vmatrix, 32);
+    SPARQUET_CHAR (vscalar, 32);
 
     // Declare all the value types
     // ---------------------------
@@ -53,11 +55,47 @@ ST_retcode sf_ll_read_varlist(
         std::shared_ptr<parquet::FileMetaData> file_metadata =
             parquet_reader->metadata();
 
-        ncol = file_metadata->num_columns();
+        // ncol = file_metadata->num_columns();
         nrow = file_metadata->num_rows();
         nrow_groups = file_metadata->num_row_groups();
         ix = 0;
         ig = 0;
+
+        memcpy(vscalar, "__sparquet_ncol", 15);
+        if ( (rc = SF_scal_use(vscalar, &z)) ) {
+            any_rc = rc;
+            ncol = 1;
+        }
+        else {
+            ncol = (int64_t) z;
+        }
+
+        maxstrlen = 1;
+        int64_t vtypes[ncol];
+        int64_t colix[ncol];
+
+        // Adjust column selection to be 0-indexed
+        memset(vmatrix, '\0', 32);
+        memcpy(vmatrix, "__sparquet_colix", 16);
+        for (j = 0; j < ncol; j++) {
+            if ( (rc = SF_mat_el(vmatrix, 1, j + 1, &z)) ) goto exit;
+            colix[j] = (int64_t) z - 1;
+        }
+
+        // Encoded variable types
+        memset(vmatrix, '\0', 32);
+        memcpy(vmatrix, "__sparquet_coltypes", 19);
+        for (j = 0; j < ncol; j++) {
+            if ( (rc = SF_mat_el(vmatrix, 1, j + 1, &z)) ) goto exit;
+            vtypes[j] = (int64_t) z;
+            if ( vtypes[j] > maxstrlen ) maxstrlen = vtypes[j];
+        }
+        SPARQUET_CHAR (vstr, maxstrlen);
+
+        if ( any_rc ) {
+            rc = any_rc;
+            goto exit;
+        }
 
         sf_printf_debug(verbose, "\tFile:    %s\n",  fname);
         sf_printf_debug(verbose, "\tGroups:  %ld\n", nrow_groups);
@@ -77,8 +115,9 @@ ST_retcode sf_ll_read_varlist(
             row_group_reader = parquet_reader->RowGroup(r);
             for (j = 0; j < ncol; j++) {
                 i = 0;
-                column_reader = row_group_reader->Column(j);
-                descr = file_metadata->schema()->Column(j);
+                jsel = colix[j];
+                column_reader = row_group_reader->Column(jsel);
+                descr = file_metadata->schema()->Column(jsel);
                 switch (descr->physical_type()) {
                     case Type::BOOLEAN:    // byte
                         bool_reader = static_cast<parquet::BoolReader*>(column_reader.get());
@@ -145,8 +184,8 @@ ST_retcode sf_ll_read_varlist(
                             rows_read = ba_reader->ReadBatch(1, nullptr, nullptr, &vbytearray, &values_read);
                             assert(rows_read == 1);
                             i++;
-                            if ( vbytearray.len > strbuffer ) {
-                                sf_errprintf("Buffer (%d) too small; re-run with larger string buffer.\n", strbuffer);
+                            if ( vbytearray.len > vtypes[j] ) {
+                                sf_errprintf("Buffer (%d) too small; re-run with larger buffer or -strscan(.)-\n", vtypes[j]);
                                 sf_errprintf("Group %d, row %d, col %d had a string of length %d.\n", r, i + ix, j, vbytearray.len);
                                 rc = 17103;
                                 goto exit;
@@ -154,12 +193,12 @@ ST_retcode sf_ll_read_varlist(
                             memcpy(vstr, vbytearray.ptr, vbytearray.len);
                             if ( (rc = SF_sstore(j + 1, i + ix, vstr)) ) goto exit;
                             // sf_printf_debug(debug, "\t(BA, %ld, %ld): %s\n", j, i + ix, vstr);
-                            memset(vstr, '\0', strbuffer);
+                            memset(vstr, '\0', maxstrlen);
                         }
                         break;
                     case Type::FIXED_LEN_BYTE_ARRAY:
-                        if ( (uint64_t) descr->type_length() > strbuffer ) {
-                            sf_errprintf("Buffer (%d) too small; re-run with larger string buffer.\n", strbuffer);
+                        if ( descr->type_length() > vtypes[j] ) {
+                            sf_errprintf("Buffer (%d) too small; error parsing FixedLenByteArray.\n", vtypes[j]);
                             sf_errprintf("Group %d, row %d, col %d had a string of length %d.\n", r, i + ix, j, descr->type_length());
                             rc = 17103;
                             goto exit;
@@ -172,10 +211,9 @@ ST_retcode sf_ll_read_varlist(
                             i++;
                             memcpy(vstr, vfixedlen.ptr, descr->type_length());
                             if ( (rc = SF_sstore(j + 1, i + ix, vstr)) ) goto exit;
-                            memset(vstr, '\0', strbuffer);
+                            memset(vstr, '\0', maxstrlen);
                         }
                     default:
-                        goto exit;
                         sf_errprintf("Unknown parquet type.\n");
                         rc = 17100;
                         goto exit;
@@ -183,7 +221,7 @@ ST_retcode sf_ll_read_varlist(
                 ig = i > ig? i: ig;
             }
         }
-        sf_running_timer (&timer, "Read data from disk into Stata");
+        sf_running_timer (&timer, "Read data from disk");
 
     } catch (const std::exception& e) {
         sf_errprintf("Parquet read error: %s\n", e.what());

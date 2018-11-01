@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.3.0 31Oct2018}{...}
+{* *! version 0.4.0 31Oct2018}{...}
 {viewerdialog parquet "dialog parquet"}{...}
 {vieweralsosee "[R] parquet" "mansection R parquet"}{...}
 {viewerjumpto "Syntax" "parquet##syntax"}{...}
@@ -16,22 +16,33 @@
 {title:Syntax}
 
 {p 8 15 2}
-{cmd:parquet} read {cmd:,} [{opt clear} {opth strbuffer(int)}]
+{cmd:parquet} read {cmd:,} [{opt clear} {it:{help parquet##parquet_options:options}}]
 
 {p 8 15 2}
-{cmd:parquet} write {cmd:,} [{opt replace} {opth rgsize(int)}]
+{cmd:parquet} write {cmd:,} [{opt replace} {it:{help parquet##parquet_options:options}}]
 
 {synoptset 18 tabbed}{...}
 {marker parquet_options}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opt clear}} When reading, clear the data in memory.
+{syntab :Read}
+{synopt :{opt clear}} Clear the data in memory.
 {p_end}
-{synopt :{opt strbuffer(#)}} When reading, allocate string buffer of size {opt strbuffer}.
+{synopt :{opt nostrscan}} Do not pre-scan data for string width. Falls back to {opt strbuffer}.
 {p_end}
-{synopt :{opt replace}} When writing, replace the target file.
+{synopt :{opt strscan[(#)]}} Scan strings for max width. Default behavior scans 2^16 rows.
 {p_end}
-{synopt :{opt rgsize}} When writing, use a row group size of {opt rgsize}.
+{synopt :{opt strbuffer(#)}} Allocate string buffer of size {opt strbuffer}; only with {opt nostrscan}.
+{p_end}
+
+{syntab :Write}
+{synopt :{opt replace}} Replace the target file.
+{p_end}
+{synopt :{opt rgsize}} Use a row group size of {opt rgsize}; ignored with {opt lowlevel}.
+{p_end}
+{synopt :{opt fixedlen}} Export strings as fixed length; requires option {opt lowlevel}.
+{p_end}
+{synopt :{opt lowlevel}} Use the low-level writer instead of the high-level writer.
 {p_end}
 
 {p2colreset}{...}

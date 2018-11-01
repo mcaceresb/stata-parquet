@@ -288,7 +288,7 @@ ST_retcode sf_ll_write_varlist(
                 goto exit;
             }
         }
-        sf_running_timer (&timer, "Wrote data from memory to disk");
+        sf_running_timer (&timer, "Wrote data from memory");
     } catch (const std::exception& e) {
         sf_errprintf("Parquet read error: %s\n", e.what());
         return(-1);

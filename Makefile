@@ -70,6 +70,14 @@ test:
 	cp ./src/test/parquet_tests.do ./build/
 	cd build/ && $(STATARUN) -b do parquet_tests.do
 
+# TODO: Bump version?
+# README.md
+# docs/parquet.sthlp
+# src/ado/parquet.ado
+# src/parquet.pkg
+# src/plugin/parquet.cpp
+# src/stata.toc
+
 .PHONY: clean
 clean:
 	rm -rf build

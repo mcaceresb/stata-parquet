@@ -1,20 +1,45 @@
+* README
+* ------
+
+sysuse auto, clear
+parquet save auto.parquet, replace
+parquet use auto.parquet, clear
+desc
+
+parquet use price make gear_ratio using auto.parquet, clear
+desc
+parquet save gear_ratio make using auto.parquet, replace
+
+sysuse auto, clear
+parquet save auto.parquet, replace lowlevel
+parquet use auto.parquet, clear lowlevel
+desc
+
+parquet use price make gear_ratio using auto.parquet, clear lowlevel
+desc
+parquet save gear_ratio make using auto.parquet, replace lowlevel
+
 * Benchmarks
 * ----------
 
 set rmsg on
 clear
-set obs 10000000
+set obs 5000000
 gen float  x1 = runiform()
 gen double x2 = rnormal()
 gen long   l1 = 100 * int(runiform())
+gen str7   s7 = "hello"
 parquet save x2 using tmp.parquet, replace
 parquet save tmp.parquet, replace
 save tmp, replace
 * export delimited using "tmp.csv", replace
 
+if ( `c(MP)' ) parquet use tmp.parquet, clear threads(4)
+parquet use x2 using tmp.parquet, clear
+parquet use tmp.parquet, clear
 use tmp.dta, clear
-parquet read tmp.parquet, clear
 * import delimited using "tmp.csv", clear varn(1)
+set rmsg off
 
 * Basic
 * -----
@@ -29,10 +54,17 @@ gen double double1  = rnormal()
 gen str32  string32 = "something here"
 desc
 l
-parquet save test-stata.parquet, replace lowlevel fixedlen
+parquet save test-stata.parquet, replace
 
-parquet use test-stata.parquet, clear
-compress
+parquet use test-stata.parquet, clear lowlevel
 desc
+compress
 l
-parquet save using test-stata2.parquet, replace
+parquet save using test-stata2.parquet, replace lowlevel fixedlen
+parquet use test-stata.parquet, clear
+desc
+
+* read/write
+* read/write lowlevel
+* read/write varlist using in range
+* asserts galore!
