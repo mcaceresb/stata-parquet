@@ -67,8 +67,9 @@ This is an alpha release and there are several important limitations:
 - Missing values (and extended missing values) are not supported. If the
   data has missing values the import/export might not fail but the values
   will be wrong.
-- String widths are not read from `.parquet` files. The plugin reads all
-  strings in uniform width. Control this via option `strbuffer()`
+- String widths are not generally stored `.parquet` files. The default
+  behavior is to try and guess the string length by scanning the first 2^16
+  rows of the file; control this via option `strscan()`.
 - Writing `strL` variables are not supported.
 - `Int96` variables is not supported, as is has no direct Stata counterpart.
 
@@ -77,26 +78,30 @@ See the TODO section for more.
 TODO
 ----
 
-Adequately deal with (or warn the user about):
+Some features that ought to be implemented:
 
 - [ ] `parquet desc`
+- [ ] Regular missing value support.
+- [ ] Option `skip` for columns that are in non-readable formats?
+- [ ] No variables (raise error).
+- [ ] No obs (raise error).
+
+Some features that might not be implementable, but the user should be
+warned about them:
+
 - [ ] Variable formats
 - [ ] Variable labels
 - [ ] Value labels
 - [ ] `strL` variables
-- [ ] Regular missing values
 - [ ] Extended missing values
 - [ ] Dataset notes
 - [ ] Variable characteristics
-- [ ] Option `skip` for columns that are in other formats?
-- [ ] No variables (raise error)
-- [ ] No obs (raise error)
-- [ ] Boolean format from Stata?
-- [ ] Automagically detect when ByteArray data are string vs binary? `str#` vs `strL`.
+- [ ] ByteArray or FixedLenByteArray with binary data.
 
 Improve:
 
-- [ ] Best way to transpose from column order to row order
+- [ ] Boolean format to/from Stata.
+- [ ] Best way to transpose from column order to row order.
 
 LICENSE
 -------
