@@ -2,10 +2,10 @@
  * Program: parquet.cpp
  * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
  * Created: Fri Mar  3 19:42:00 EDT 2017
- * Updated: Wed Oct 31 11:19:41 EDT 2018
+ * Updated: Wed Oct 31 18:51:36 EDT 2018
  * Purpose: Stata plugin to read and write to the parquet file format
  * Note:    See stata.com/plugins for more on Stata plugins
- * Version: 0.3.0
+ * Version: 0.4.0
  *********************************************************************/
 
 /**
@@ -34,15 +34,13 @@
 #define DEBUG     0
 #define VERBOSE   1
 
-const char SPARQUET_READER_VERSION[] = "v0.3.0";
-const char SPARQUET_WRITER_VERSION[] = "v0.3.0";
-
 #include "reader_writer.h"
 #include "parquet.h"
 #include "parquet-utils.cpp"
 #include "parquet-reader-ll.cpp"
-#include "parquet-writer-ll.cpp"
 #include "parquet-writer-hl.cpp"
+#include "parquet-writer-ll.cpp"
+#include "parquet-reader-hl.cpp"
 
 // Syntax
 //     plugin call parquet varlist [in], todo file.parquet [file.colnames]
@@ -114,16 +112,18 @@ STDLL stata_call(int argc, char *argv[])
         if ( (rc = sf_ll_coltypes(fname, fcols, DEBUG, strbuffer)) ) goto exit;
     }
     else if ( strcmp(todo, "read") == 0 ) {
-        sf_printf_debug(VERBOSE, "Stata Parquet Reader %s\n", SPARQUET_READER_VERSION);
-        if ( (rc = sf_ll_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+        if ( lowlevel ) {
+            if ( (rc = sf_ll_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+        }
+        else {
+            if ( (rc = sf_hl_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+        }
     }
     else if ( strcmp(todo, "write") == 0 ) {
         // TODO: Support strL as ByteArray?
         flength = strlen(argv[2]) + 1;
         SPARQUET_CHAR (fcols, flength);
         strcpy (fcols, argv[2]);
-
-        sf_printf_debug(VERBOSE, "Stata Parquet Writer %s\n", SPARQUET_READER_VERSION);
         if ( lowlevel ) {
             if ( (rc = sf_ll_write_varlist(fname, fcols, VERBOSE, DEBUG, strbuffer)) ) goto exit;
         }

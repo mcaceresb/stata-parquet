@@ -39,15 +39,23 @@ exit:
 // fname is the parquet file name
 // fcols is the temporary text file where to write column names
 // __sparquet_coltypes must exist in Stata and be 1 by # cols
+// __sparquet_strscan must exist in Stata and be a scalar
 ST_retcode sf_ll_coltypes(
     const char *fname,
     const char *fcols,
     const int debug,
     const uint64_t strbuffer)
 {
+    ST_double z;
     ST_retcode rc = 0;
-    int64_t ncol, j;
+    clock_t timer = clock();
+    int64_t strlen, strscan, nrow_groups, ncol, nval, r, i, j;
     SPARQUET_CHAR(vmatrix, 32);
+    SPARQUET_CHAR(vscalar, 32);
+
+    memcpy(vscalar, "__sparquet_strscan", 18);
+    if ( (rc = SF_scal_use(vscalar, &z)) ) goto exit;
+    strscan = (int64_t) z;
 
     // File reader
     try {
@@ -57,7 +65,13 @@ ST_retcode sf_ll_coltypes(
         std::shared_ptr<parquet::FileMetaData> file_metadata =
             parquet_reader->metadata();
 
+        std::shared_ptr<parquet::ColumnReader> column_reader;
+        std::shared_ptr<parquet::RowGroupReader> row_group_reader;
+        parquet::ByteArrayReader* ba_reader;
+        parquet::ByteArray vbytearray;
+
         ncol = file_metadata->num_columns();
+        nrow_groups = file_metadata->num_row_groups();
         double vtypes[ncol];
 
         std::ofstream fstream;
@@ -90,10 +104,27 @@ ST_retcode sf_ll_coltypes(
                     break;
                 case Type::BYTE_ARRAY: // str#, strL
                     // vtypes[j] = SV_missval;
-                    vtypes[j] = strbuffer;
+                    if ( strscan > 0 ) {
+                        i = 0;
+                        strlen = 0;
+                        for (r = 0; r < nrow_groups; ++r) {
+                            row_group_reader = parquet_reader->RowGroup(r);
+                            column_reader = row_group_reader->Column(j);
+                            ba_reader = static_cast<parquet::ByteArrayReader*>(column_reader.get());
+                            while ( ba_reader->HasNext() && i++ < strscan ) {
+                                ba_reader->ReadBatch(1, nullptr, nullptr, &vbytearray, &nval);
+                                if (vbytearray.len > strlen) strlen = vbytearray.len;
+                            }
+                            if ( i >= strscan ) break;
+                        }
+                        vtypes[j] = strlen;
+                    }
+                    else {
+                        vtypes[j] = strbuffer;
+                    }
                     break;
                 case Type::FIXED_LEN_BYTE_ARRAY: // str#, strL
-                    vtypes[j] = strbuffer;
+                    vtypes[j] = descr->type_length();
                     break;
                 default:
                     sf_errprintf("Unknown parquet type.\n");
@@ -113,6 +144,7 @@ ST_retcode sf_ll_coltypes(
         return(-1);
     }
 
+    sf_running_timer (&timer, "Scanned column types");
 exit:
     return (rc);
 }

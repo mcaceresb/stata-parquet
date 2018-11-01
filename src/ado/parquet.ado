@@ -1,4 +1,4 @@
-*! version 0.3.0 30Oct2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.4.0 30Oct2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -45,21 +45,67 @@ end
 
 capture program drop parquet_read
 program parquet_read
-    syntax using/, [clear strbuffer(int 255)]
+    * TODO: Parse column selector
+    syntax [anything]          ///
+           using/,             ///
+    [                          ///
+           clear               ///
+           in(str)             ///
+           lowlevel            ///
+           threads(int 1)      ///
+           strbuffer(int 255)  ///
+           nostrscan           ///
+           STRSCANner(real -1) ///
+    ]
 
     qui desc, short
     if ( `r(changed)' & `"`clear'"' == "" ) {
         error 4
     }
 
+    * TODO: this only seems to work in Stata/MP; is it also limited to
+    * the # of processors in Stata?
+    if ( (`threads' > 1) & ("`lowlevel'" != "") ) {
+        disp as err "Option -threads()- not available with -lowlevel-"
+        exit 198
+    }
+    if ( (`threads' > 1) & !`c(MP)' ) {
+        disp as err "Option -threads()- only available with Stata/MP"
+        exit 198
+    }
+    if ( `threads' < 1 ) {
+        disp as err "Specify a valid number of threads"
+        exit 198
+    }
+
+    * Parse in range
+    * --------------
+
+    gettoken infrom into: in, p(/)
+    gettoken slash into: into, p(/)
+
+    if ( "`infrom'" == "f" ) local infrom 1
+    if ( "`infrom'" !=  "" ) {
+        confirm number `infrom'
+        if ( `infrom' == 0 ) local infrom 1
+        if ( `infrom' < 0 ) {
+            _assert("`into'" == "l"), msg("Cannot read from a negative number")
+        }
+    }
+
+    if ( "`into'" == "l" ) local into
+    if ( "`into'" != "" ) confirm number `into'
+
     * Initialize scalars
     * ------------------
 
-    * TODO: All strings are initialized with length strbuffer; fix
+    * TODO: Strings are initialized with length from scanning a
+    * sub-sample of the variables (first strscanner rows). Improve?
 
     scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
     scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
     scalar __sparquet_strbuffer = `strbuffer'
+    scalar __sparquet_threads   = `threads'
     scalar __sparquet_nrow      = .
     scalar __sparquet_ncol      = .
     matrix __sparquet_coltypes  = .
@@ -98,6 +144,11 @@ program parquet_read
     * scalar list
     check_matsize, nvars(`=scalar(__sparquet_ncol)')
 
+    if ( "`strscan'" != "nostrscan" ) {
+        local strscanner = cond(`strscanner' > 0, `strscanner', `=2^16')
+    }
+    scalar __sparquet_strscan = cond(`strscanner' == ., `=scalar(__sparquet_nrow)', `strscanner')
+
     * Column types
     * ------------
 
@@ -125,13 +176,27 @@ program parquet_read
     }
     * matrix list __sparquet_coltypes
     mata: __sparquet_colnames = __sparquet_getcolnames(`"`colnames'"')
-    mata: __sparquet_varnames = __sparquet_makenames(__sparquet_colnames)
+    mata: __sparquet_colix    = __sparquet_getcolix(__sparquet_colnames, tokens(`"`anything'"'))
+    mata: __sparquet_varnames = __sparquet_makenames(__sparquet_colnames[__sparquet_colix])
+    mata: st_matrix("__sparquet_colix", rowshape(__sparquet_colix, 1))
+    mata: st_numscalar("__sparquet_ncol", length(__sparquet_colix))
+
+    tempname __sparquet_coltypes
+    matrix `__sparquet_coltypes' = J(1, `=scalar(__sparquet_ncol)', .)
+    forvalues j = 1 / `=scalar(__sparquet_ncol)' {
+        matrix `__sparquet_coltypes'[1, `j'] = __sparquet_coltypes[1, __sparquet_colix[1, `j']]
+    }
+    matrix __sparquet_coltypes = `__sparquet_coltypes'
+    matrix drop `__sparquet_coltypes'
+    * matrix list __sparquet_coltypes
+    * matrix list __sparquet_colix
 
     * Generate empty dataset
     * ----------------------
 
     * TODO: How to code strL? Even possible?
     * TODO: How to code str#? Get max length of ByteArray?
+    * TODO: How to parse column selector? Closest match?
     local ctypes
     local cnames
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
@@ -156,9 +221,24 @@ program parquet_read
     check_reserved `cnames'
     local cnames `r(varlist)'
 
+    * TODO: Actually implement in range // 2018-10-31 01:01 EDT
+    if ( `"`infrom'"' == "" ) local infrom 1
+    if ( `"`into'"'   == "" ) local into `=scalar(__sparquet_nrow)'
+    if ( `"`in'"' != "" ) {
+        if ( `infrom' < 0 ) {
+            local infrom = `into' + `infrom'
+        }
+        disp as err "Option in() not yet implemented."
+        exit 17042
+    }
+    if ( `into' > `=scalar(__sparquet_nrow)' ) {
+        disp as err "Tried to read until row `into' but data had `=scalar(__sparquet_nrow)' rows."
+        exit 198
+    }
+
     * TODO: Figure out how to map arbitrary strings into unique stata variable names
     clear
-    set obs `=scalar(__sparquet_nrow)'
+    qui set obs `=`into'-`infrom'+1'
     mata: (void) st_addvar(tokens("`ctypes'"), tokens("`cnames'"))
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
         mata: st_local("vlabel", __sparquet_colnames[`j'])
@@ -169,7 +249,7 @@ program parquet_read
     * Read parquet file!
     * ------------------
 
-    cap noi plugin call parquet_plugin `cnames', read `"`using'"'
+    cap noi plugin call parquet_plugin `cnames' `in', read `"`using'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
@@ -193,7 +273,18 @@ end
 
 capture program drop parquet_write
 program parquet_write
-    syntax [varlist] using/ [in], [replace rgsize(real 0) lowlevel fixedlen]
+    syntax [varlist]      ///
+           using/         ///
+           [in],          ///
+    [                     ///
+           replace        ///
+           rgsize(real 0) ///
+           lowlevel       ///
+           fixedlen       ///
+    ]
+
+    * Parse plugin options
+    * --------------------
 
     if ( ("`fixedlen'" != "") & ("`lowlevel'" == "") ) {
         disp as err "Option -fixedlen- requires option -lowlevel-"
@@ -209,8 +300,27 @@ program parquet_write
     scalar __sparquet_strbuffer = 1
     scalar __sparquet_ncol      = `:list sizeof varlist'
 
+    * Check plugin loaded OK
+    * ----------------------
+
+    cap noi plugin call parquet_plugin, check `"`using'"'
+    if ( _rc == -1 ) {
+        disp as err "Parquet library error."
+        clean_exit
+        exit -1
+    }
+    else if ( _rc ) {
+        local rc = _rc
+        disp as err "Parquet plugin not loaded correctly."
+        clean_exit
+        exit `rc'
+    }
+
+    * Parse variable types
+    * --------------------
+
     check_matsize, nvars(`=scalar(__sparquet_ncol)')
-    matrix __sparquet_coltypes  = J(1, `=scalar(__sparquet_ncol)', .)
+    matrix __sparquet_coltypes = J(1, `=scalar(__sparquet_ncol)', .)
 
     // TODO: Support strL as ByteArray?
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
@@ -246,6 +356,9 @@ program parquet_write
         exit 602
     }
 
+    * Write data into file
+    * --------------------
+
     tempfile colnames
     mata: __sparquet_putcolnames(`"`colnames'"', tokens("`varlist'"))
 
@@ -272,11 +385,15 @@ capture program drop clean_exit
 program clean_exit
     cap scalar drop __sparquet_nrow
     cap scalar drop __sparquet_ncol
+    cap scalar drop __sparquet_strscan
     cap scalar drop __sparquet_strbuffer
+    cap scalar drop __sparquet_threaded
     cap scalar drop __sparquet_lowlevel
     cap scalar drop __sparquet_fixedlen
     cap scalar drop __sparquet_rg_size
     cap matrix drop __sparquet_coltypes
+    cap matrix drop __sparquet_colix
+    cap mata: mata drop __sparquet_colix
     cap mata: mata drop __sparquet_colnames
     cap mata: mata drop __sparquet_varnames
 end
@@ -318,14 +435,17 @@ program check_reserved, rclass
 end
 
 cap mata: mata drop __sparquet_getcolnames()
+cap mata: mata drop __sparquet_getcolix()
 cap mata: mata drop __sparquet_putcolnames()
 cap mata: mata drop __sparquet_makenames()
 
+* TODO: Selector matches multiple columns? Repeated selector?
 mata:
 string vector function __sparquet_getcolnames(string scalar fcol)
 {
     string vector colnames
     string vector line
+    real scalar i, ix
     scalar fh
 
     colnames = J(0, 1, "")
@@ -334,7 +454,32 @@ string vector function __sparquet_getcolnames(string scalar fcol)
         colnames = colnames \ line
     }
     fclose(fh)
+
     return (colnames)
+}
+
+real vector function __sparquet_getcolix(string vector colnames, string vector sel)
+{
+    real vector colix
+    real scalar i, ix
+
+    colix = J(0, 1, .)
+    if ( length(sel) > 0 ) {
+        for (i = 1; i <= length(sel); i++) {
+            if ( any(sel[i] :== colnames) ) {
+                ix = selectindex(sel[i] :== colnames)
+                colix = colix \ ix
+            }
+            else {
+                errprintf("'%s' did not match any columns\n", sel[i])
+                assert(0)
+            }
+        }
+    }
+    else {
+        colix = 1::length(colnames)
+    }
+    return (colix);
 }
 
 void function __sparquet_putcolnames(

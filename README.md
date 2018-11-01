@@ -7,7 +7,7 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.3.0 31Oct2018`
+`version 0.4.0 31Oct2018`
 
 Installation
 ------------
@@ -50,11 +50,13 @@ In both of these examples, make sure to replace `${CONDA_PREFIX}` with the
 absolute path it represents.) Then, from Stata
 
 ```stata
-sysuse auto
+sysuse auto, clear
 parquet save auto.parquet, replace
 parquet use auto.parquet, clear
-compress
 desc
+
+parquet use price make gear_ratio using auto.parquet, clear
+parquet save gear_ratio make using auto.parquet, replace
 ```
 
 Limitations
@@ -77,6 +79,7 @@ TODO
 
 Adequately deal with (or warn the user about):
 
+- [ ] `parquet desc`
 - [ ] Variable formats
 - [ ] Variable labels
 - [ ] Value labels

@@ -36,3 +36,48 @@ using parquet::Repetition;
 using parquet::Type;
 using parquet::schema::GroupNode;
 using parquet::schema::PrimitiveNode;
+
+Type::type get_physical_type(const arrow::Type::type type) {
+    switch (type) {
+        case arrow::Type::BOOL:
+            return Type::BOOLEAN;
+        case arrow::Type::UINT8:
+        case arrow::Type::INT8:
+        case arrow::Type::UINT16:
+        case arrow::Type::INT16:
+        case arrow::Type::UINT32:
+        case arrow::Type::INT32:
+            return Type::INT32;
+        case arrow::Type::UINT64:
+        case arrow::Type::INT64:
+            return Type::INT64;
+        case arrow::Type::FLOAT:
+            return Type::FLOAT;
+        case arrow::Type::DOUBLE:
+            return Type::DOUBLE;
+        case arrow::Type::BINARY:
+            return Type::BYTE_ARRAY;
+        case arrow::Type::STRING:
+            return Type::BYTE_ARRAY;
+        case arrow::Type::FIXED_SIZE_BINARY:
+        case arrow::Type::DECIMAL:
+            return Type::FIXED_LEN_BYTE_ARRAY;
+        case arrow::Type::DATE32:
+            return Type::INT32;
+        case arrow::Type::DATE64:
+            // Convert to date32 internally
+            return Type::INT32;
+        case arrow::Type::TIME32:
+            return Type::INT32;
+        case arrow::Type::TIME64:
+            return Type::INT64;
+        case arrow::Type::TIMESTAMP:
+            return Type::INT64;
+        case arrow::Type::DICTIONARY:
+            // not implemented; figure a better way to deal?
+            return Type::INT96;
+        default:
+            break;
+    }
+    return Type::INT32;
+}

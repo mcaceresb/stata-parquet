@@ -64,7 +64,10 @@ ST_retcode sf_hl_write_varlist(
     // Get variable names
     // ------------------
 
-    if ( any_rc ) goto exit;
+    if ( any_rc ) {
+        rc = any_rc;
+        goto exit;
+    }
 
     j = 0;
     fstream.open(fcols);
@@ -151,7 +154,7 @@ ST_retcode sf_hl_write_varlist(
                 goto exit;
             }
         }
-        sf_running_timer (&timer, "Read data into Arrow table");
+        sf_running_timer (&timer, "Copied data into Arrow table");
 
         std::shared_ptr<arrow::Schema> schema = arrow::schema(vfields);
         std::shared_ptr<arrow::Table> table = arrow::Table::Make(schema, varrays);
@@ -164,6 +167,11 @@ ST_retcode sf_hl_write_varlist(
                 arrow::io::FileOutputStream::Open(fname, &outfile));
         PARQUET_THROW_NOT_OK(
                 parquet::arrow::WriteTable(*table, arrow::default_memory_pool(), outfile, rg_size));
+
+        // std::shared_ptr<parquet::arrow::FileWriter> writer;
+        // PARQUET_THROW_NOT_OK(
+        //     parquet::arrow::OpenFile(outfile, arrow::default_memory_pool(), &writer));
+        // PARQUET_THROW_NOT_OK(writer->WriteTable(*table, rg_size));
 
         sf_running_timer (&timer, "Wrote table to file");
         sf_printf_debug(verbose, "\t%s\n", fname);

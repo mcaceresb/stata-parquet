@@ -57,6 +57,7 @@ copy:
 	cp src/ado/parquet.ado ./build/
 	cp docs/parquet.sthlp  ./build/
 	cp ./src/test/parquet_tests.do ./build/
+	sed -i.bak 's/parquet_os.plugin/$(OUT)/' build/parquet.pkg
 
 ## Install the Stata package (replace if necessary)
 replace:
@@ -68,6 +69,14 @@ replace:
 test:
 	cp ./src/test/parquet_tests.do ./build/
 	cd build/ && $(STATARUN) -b do parquet_tests.do
+
+# TODO: Bump version?
+# README.md
+# docs/parquet.sthlp
+# src/ado/parquet.ado
+# src/parquet.pkg
+# src/plugin/parquet.cpp
+# src/stata.toc
 
 .PHONY: clean
 clean:
