@@ -2,6 +2,7 @@
 * ------
 
 sysuse auto, clear
+replace gear_ratio = .a in 2
 parquet save auto.parquet, replace
 parquet use auto.parquet, clear
 desc
@@ -51,11 +52,16 @@ gen int    int1     = _n * 8
 gen long   long1    = _n * 42
 gen float  float1   = runiform()
 gen double double1  = rnormal()
+replace byte1       = . in 9
+replace int1        = .b in 6
+replace double1     = .a in 3
 gen str32  string32 = "something here"
 desc
 l
 parquet save test-stata.parquet, replace
 
+parquet use test-stata.parquet, clear
+l
 parquet use test-stata.parquet, clear lowlevel
 desc
 compress

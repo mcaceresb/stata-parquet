@@ -7,7 +7,7 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.4.0 31Oct2018`
+`version 0.4.1 02Nov2018`
 
 Installation
 ------------
@@ -64,13 +64,11 @@ Limitations
 
 This is an alpha release and there are several important limitations:
 
-- Missing values (and extended missing values) are not supported. If the
-  data has missing values the import/export might not fail but the values
-  will be wrong.
 - String widths are not generally stored `.parquet` files. The default
   behavior is to try and guess the string length by scanning the first 2^16
   rows of the file; control this via option `strscan()`.
 - Writing `strL` variables are not supported.
+- Reading binary ByteArray data is not supported, only strings.
 - `Int96` variables is not supported, as is has no direct Stata counterpart.
 
 See the TODO section for more.
@@ -81,19 +79,19 @@ TODO
 Some features that ought to be implemented:
 
 - [ ] `parquet desc`
-- [ ] Regular missing value support.
+- [X] Regular missing value support (high-level read/write only).
 - [ ] Option `skip` for columns that are in non-readable formats?
-- [ ] No variables (raise error).
-- [ ] No obs (raise error).
+- [X] No variables (raise error).
+- [X] No obs (raise error).
 
 Some features that might not be implementable, but the user should be
 warned about them:
 
+- [X] Extended missing values (user gets a warning).
+- [ ] `strL` variables
 - [ ] Variable formats
 - [ ] Variable labels
 - [ ] Value labels
-- [ ] `strL` variables
-- [ ] Extended missing values
 - [ ] Dataset notes
 - [ ] Variable characteristics
 - [ ] ByteArray or FixedLenByteArray with binary data.

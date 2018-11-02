@@ -2,16 +2,16 @@
  * Program: parquet.cpp
  * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
  * Created: Fri Mar  3 19:42:00 EDT 2017
- * Updated: Wed Oct 31 18:51:36 EDT 2018
+ * Updated: Fri Nov  2 09:51:36 EDT 2018
  * Purpose: Stata plugin to read and write to the parquet file format
  * Note:    See stata.com/plugins for more on Stata plugins
- * Version: 0.4.0
+ * Version: 0.4.1
  *********************************************************************/
 
 /**
  * @file parquet.cpp
  * @author Mauricio Caceres Bravo
- * @date 31 Oct 2018
+ * @date 02 Nov 2018
  * @brief Stata plugin
  *
  * This file should only ever be called from parquet.ado
