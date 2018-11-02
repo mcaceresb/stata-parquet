@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.4.1 02Nov2018}{...}
+{* *! version 0.4.2 02Nov2018}{...}
 {viewerdialog parquet "dialog parquet"}{...}
 {vieweralsosee "[R] parquet" "mansection R parquet"}{...}
 {viewerjumpto "Syntax" "parquet##syntax"}{...}
@@ -28,11 +28,13 @@
 {syntab :Read}
 {synopt :{opt clear}} Clear the data in memory.
 {p_end}
-{synopt :{opt nostrscan}} Do not pre-scan data for string width. Falls back to {opt strbuffer}.
+{synopt :{opt nostrscan}} Do not pre-scan data for string width; falls back to {opt strbuffer}.
 {p_end}
-{synopt :{opt strscan[(#)]}} Scan strings for max width. Default behavior scans 2^16 rows.
+{synopt :{opth strscan[(#)]}} Scan strings for max width. Default behavior scans 2^16 rows.
 {p_end}
-{synopt :{opt strbuffer(#)}} Allocate string buffer of size {opt strbuffer}; only with {opt nostrscan}.
+{synopt :{opt strbuffer(#)}} Allocate string buffer of size {opt strbuffer} if strscan returns 0.
+{p_end}
+{synopt :{opt lowlevel}} Use the low-level reader instead of the high-level reader.
 {p_end}
 
 {syntab :Write}

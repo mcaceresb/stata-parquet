@@ -117,7 +117,7 @@ ST_retcode sf_ll_coltypes(
                             }
                             if ( i >= strscan ) break;
                         }
-                        vtypes[j] = strlen;
+                        vtypes[j] = strlen > 0? strlen: strbuffer;
                     }
                     else {
                         vtypes[j] = strbuffer;

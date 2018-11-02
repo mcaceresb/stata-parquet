@@ -1,6 +1,19 @@
 Change Log
 ==========
 
+## parquet-0.4.2 (2018-11-02)
+
+### Features
+
+- `lowlevel` back in; can use option `in()` to read in range using
+  `lowlevel`.
+
+## Notes
+
+- `lowlevel` writer does not support missing values; user receives
+  warning with option `lowlevel` and error if missing values are
+  encountered.
+
 ## parquet-0.4.1 (2018-11-02)
 
 ### Enhancements
