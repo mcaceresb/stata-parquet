@@ -1,6 +1,15 @@
 Change Log
 ==========
 
+## parquet-0.4.1 (2018-11-02)
+
+### Enhancements
+
+- High-level reader now supports missing values.
+- The user is warned that extended missing values are coerced to NaN.
+- `lowlevel` deprecated; moved to `debug_lowlevel`.
+- User is warned if the data is empty (no obs).
+
 ## parquet-0.4.0 (2018-10-31)
 
 ### Features

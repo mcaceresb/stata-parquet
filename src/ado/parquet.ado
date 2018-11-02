@@ -1,4 +1,4 @@
-*! version 0.4.0 30Oct2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.4.1 02Nov2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -51,16 +51,22 @@ program parquet_read
     [                          ///
            clear               ///
            in(str)             ///
-           lowlevel            ///
+           debug_lowlevel      ///
            threads(int 1)      ///
            strbuffer(int 255)  ///
            nostrscan           ///
            STRSCANner(real -1) ///
     ]
+    local lowlevel `debug_lowlevel'
 
     qui desc, short
     if ( `r(changed)' & `"`clear'"' == "" ) {
         error 4
+    }
+
+    if ( "`lowlevel'" != "" ) {
+        disp as err "{bf:Warning:} Low-level parser should only be used for debugging."
+        disp as err "{bf:Warning:} Low-level parser does not adequately read missing values."
     }
 
     * TODO: this only seems to work in Stata/MP; is it also limited to
@@ -279,9 +285,15 @@ program parquet_write
     [                     ///
            replace        ///
            rgsize(real 0) ///
-           lowlevel       ///
+           debug_lowlevel ///
            fixedlen       ///
     ]
+    local lowlevel `debug_lowlevel'
+
+    if ( "`lowlevel'" != "" ) {
+        disp as err "{bf:Warning:} Low-level parser should only be used for debugging."
+        disp as err "{bf:Warning:} Low-level parser does not adequately write missing values."
+    }
 
     * Parse plugin options
     * --------------------
