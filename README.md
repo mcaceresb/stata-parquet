@@ -64,9 +64,10 @@ Limitations
 
 This is an alpha release and there are several important limitations:
 
-- String widths are not generally stored `.parquet` files. The default
-  behavior is to try and guess the string length by scanning the first 2^16
-  rows of the file; control this via option `strscan()`.
+- Maximum string widths are not generally stored in `.parquet` files
+  (as far as I can tell). The default behavior is to try and guess the
+  string length by scanning the first 2^16 rows of the file; control
+  this via option `strscan()`.
 - Writing `strL` variables are not supported.
 - Reading binary ByteArray data is not supported, only strings.
 - `Int96` variables is not supported, as is has no direct Stata counterpart.
