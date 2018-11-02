@@ -98,7 +98,6 @@ ST_retcode sf_hl_write_varlist(
             vtype = vtypes[j];
             // sf_printf_debug(2, "col %ld: %ld (%s)\n", j, vtype, vnames[j].c_str());
             // TODO: Boolean is only 0/1; keep? Or always int32?
-            // TODO: Missing values
             if ( vtype == -1 ) {
                 arrow::BooleanBuilder boolbuilder;
                 for (i = 0; i < N; i++) {
@@ -214,11 +213,6 @@ ST_retcode sf_hl_write_varlist(
                 arrow::io::FileOutputStream::Open(fname, &outfile));
         PARQUET_THROW_NOT_OK(
                 parquet::arrow::WriteTable(*table, arrow::default_memory_pool(), outfile, rg_size));
-
-        // std::shared_ptr<parquet::arrow::FileWriter> writer;
-        // PARQUET_THROW_NOT_OK(
-        //     parquet::arrow::OpenFile(outfile, arrow::default_memory_pool(), &writer));
-        // PARQUET_THROW_NOT_OK(writer->WriteTable(*table, rg_size));
 
         sf_running_timer (&timer, "Wrote table to file");
         sf_printf_debug(verbose, "\t%s\n", fname);

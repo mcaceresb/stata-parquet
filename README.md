@@ -7,7 +7,7 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.4.1 02Nov2018`
+`version 0.4.2 02Nov2018`
 
 Installation
 ------------
@@ -80,6 +80,8 @@ TODO
 Some features that ought to be implemented:
 
 - [ ] `parquet desc`
+- [X] `parquet use` in range (only low-level implemented).
+- [ ] `parquet use` in range for high-level reader..
 - [X] Regular missing value support (high-level read/write only).
 - [ ] Option `skip` for columns that are in non-readable formats?
 - [X] No variables (raise error).

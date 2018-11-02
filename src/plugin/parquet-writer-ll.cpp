@@ -17,11 +17,12 @@ ST_retcode sf_ll_write_varlist(
     SPARQUET_CHAR(vstr, strbuffer);
 
 
-    int16_t definition_level = 1;
     int64_t in1 = SF_in1();
     int64_t in2 = SF_in2();
     int64_t N = in2 - in1 + 1;
     int64_t vtype, i, j, ncol = 1, fixedlen = 0;
+    int64_t warn_extended = 0;
+    int16_t definition_level = 1;
 
     std::string line;
     std::ifstream fstream;
@@ -210,15 +211,23 @@ ST_retcode sf_ll_write_varlist(
         for (j = 0; j < ncol; j++) {
             vtype = vtypes[j];
             // TODO: Boolean is only 0/1; keep? Or always int32?
-            // TODO: Boolean does NOT support missing values; leaning toward dropping
-            // TODO: Missing values
             if ( vtype == -1 ) {
                 bool_writer = static_cast<parquet::BoolWriter*>(rg_writer->NextColumn());
                 for (i = 0; i < N; i++) {
                     if ( (rc = SF_vdata(j + 1, i + in1, &z)) ) goto exit;
                     // sf_printf_debug(2, "\t(bool, %ld, %ld): %9.4f\n", j, i, z);
-                    vbool = (bool) z;
-                    bool_writer->WriteBatch(1, nullptr, nullptr, &vbool);
+                    if ( z < SV_missval ) {
+                        vbool = (bool) z;
+                        bool_writer->WriteBatch(1, nullptr, nullptr, &vbool);
+                    }
+                    else {
+                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        rc = 17042;
+                        goto exit;
+                        if ( z > SV_missval ) {
+                            ++warn_extended;
+                        }
+                    }
                 }
             }
             else if ( vtype == -2 ) {
@@ -226,8 +235,18 @@ ST_retcode sf_ll_write_varlist(
                 for (i = 0; i < N; i++) {
                     if ( (rc = SF_vdata(j + 1, i + in1, &z)) ) goto exit;
                     // sf_printf_debug(2, "\t(int, %ld, %ld): %9.4f\n", j, i, z);
-                    vint32 = (int32_t) z;
-                    int32_writer->WriteBatch(1, nullptr, nullptr, &vint32);
+                    if ( z < SV_missval ) {
+                        vint32 = (int32_t) z;
+                        int32_writer->WriteBatch(1, nullptr, nullptr, &vint32);
+                    }
+                    else {
+                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        rc = 17042;
+                        goto exit;
+                        if ( z > SV_missval ) {
+                            ++warn_extended;
+                        }
+                    }
                 }
             }
             else if ( vtype == -3 ) {
@@ -235,8 +254,18 @@ ST_retcode sf_ll_write_varlist(
                 for (i = 0; i < N; i++) {
                     if ( (rc = SF_vdata(j + 1, i + in1, &z)) ) goto exit;
                     // sf_printf_debug(2, "\t(long, %ld, %ld): %9.4f\n", j, i, z);
-                    vint32 = (int32_t) z;
-                    int32_writer->WriteBatch(1, nullptr, nullptr, &vint32);
+                    if ( z < SV_missval ) {
+                        vint32 = (int32_t) z;
+                        int32_writer->WriteBatch(1, nullptr, nullptr, &vint32);
+                    }
+                    else {
+                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        rc = 17042;
+                        goto exit;
+                        if ( z > SV_missval ) {
+                            ++warn_extended;
+                        }
+                    }
                 }
             }
             else if ( vtype == -4 ) {
@@ -244,8 +273,18 @@ ST_retcode sf_ll_write_varlist(
                 for (i = 0; i < N; i++) {
                     if ( (rc = SF_vdata(j + 1, i + in1, &z)) ) goto exit;
                     // sf_printf_debug(2, "\t(float, %ld, %ld): %9.4f\n", j, i, z);
-                    vfloat = (float) z;
-                    float_writer->WriteBatch(1, nullptr, nullptr, &vfloat);
+                    if ( z < SV_missval ) {
+                        vfloat = (float) z;
+                        float_writer->WriteBatch(1, nullptr, nullptr, &vfloat);
+                    }
+                    else {
+                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        rc = 17042;
+                        goto exit;
+                        if ( z > SV_missval ) {
+                            ++warn_extended;
+                        }
+                    }
                 }
             }
             else if ( vtype == -5 ) {
@@ -253,8 +292,18 @@ ST_retcode sf_ll_write_varlist(
                 for (i = 0; i < N; i++) {
                     if ( (rc = SF_vdata(j + 1, i + in1, &z)) ) goto exit;
                     // sf_printf_debug(2, "\t(double, %ld, %ld): %9.4f\n", j, i, z);
-                    vdouble = (double) z;
-                    double_writer->WriteBatch(1, nullptr, nullptr, &vdouble);
+                    if ( z < SV_missval ) {
+                        vdouble = (double) z;
+                        double_writer->WriteBatch(1, nullptr, nullptr, &vdouble);
+                    }
+                    else {
+                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        rc = 17042;
+                        goto exit;
+                        if ( z > SV_missval ) {
+                            ++warn_extended;
+                        }
+                    }
                 }
             }
             else if ( vtype > 0 ) {
@@ -264,7 +313,6 @@ ST_retcode sf_ll_write_varlist(
                     for (i = 0; i < N; i++) {
                         // memset(vstr, ' ', vtype);
                         if ( (rc = SF_sdata(j + 1, i + in1, vstr)) ) goto exit;
-                        // sf_printf_debug(2, "\t(FWBA, %ld, %ld): %s\n", j, i, vstr);
                         vfixedlen.ptr = reinterpret_cast<const uint8_t*>(&vstr[0]);
                         flba_writer->WriteBatch(1, nullptr, nullptr, &vfixedlen);
                         memset(vstr, '\0', strbuffer);
@@ -274,7 +322,6 @@ ST_retcode sf_ll_write_varlist(
                     ba_writer = static_cast<parquet::ByteArrayWriter*>(rg_writer->NextColumn());
                     for (i = 0; i < N; i++) {
                         if ( (rc = SF_sdata(j + 1, i + in1, vstr)) ) goto exit;
-                        // sf_printf_debug(2, "\t(BA, %ld, %ld): %s\n", j, i, vstr);
                         vbytearray.ptr = reinterpret_cast<const uint8_t*>(&vstr[0]);
                         vbytearray.len = strlen(vstr);
                         ba_writer->WriteBatch(1, &definition_level, nullptr, &vbytearray);
@@ -287,6 +334,10 @@ ST_retcode sf_ll_write_varlist(
                 rc = 17100;
                 goto exit;
             }
+        }
+
+        if ( warn_extended > 0 ) {
+            sf_printf("Warning: %ld extended missing values coerced to NaN.\n", warn_extended);
         }
         sf_running_timer (&timer, "Wrote data from memory");
     } catch (const std::exception& e) {

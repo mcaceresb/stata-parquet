@@ -5,7 +5,7 @@
  * Updated: Fri Nov  2 09:51:36 EDT 2018
  * Purpose: Stata plugin to read and write to the parquet file format
  * Note:    See stata.com/plugins for more on Stata plugins
- * Version: 0.4.1
+ * Version: 0.4.2
  *********************************************************************/
 
 /**

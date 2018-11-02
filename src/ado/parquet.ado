@@ -1,4 +1,4 @@
-*! version 0.4.1 02Nov2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.4.2 02Nov2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -51,13 +51,12 @@ program parquet_read
     [                          ///
            clear               ///
            in(str)             ///
-           debug_lowlevel      ///
+           lowlevel            ///
            threads(int 1)      ///
-           strbuffer(int 255)  ///
+           strbuffer(int 65)   ///
            nostrscan           ///
            STRSCANner(real -1) ///
     ]
-    local lowlevel `debug_lowlevel'
 
     qui desc, short
     if ( `r(changed)' & `"`clear'"' == "" ) {
@@ -66,7 +65,10 @@ program parquet_read
 
     if ( "`lowlevel'" != "" ) {
         disp as err "{bf:Warning:} Low-level parser should only be used for debugging."
-        disp as err "{bf:Warning:} Low-level parser does not adequately read missing values."
+    }
+    if ( (`"`in'"' != "") & (`"`lowlevel'"' == "") ) {
+        disp as err "Option in() only available with -lowlevel-."
+        exit 17042
     }
 
     * TODO: this only seems to work in Stata/MP; is it also limited to
@@ -83,6 +85,9 @@ program parquet_read
         disp as err "Specify a valid number of threads"
         exit 198
     }
+    if ( `threads' > 1 ) {
+        disp as err "{bf:Warning:} Option -threads()- is experimental and often slower."
+    }
 
     * Parse in range
     * --------------
@@ -95,12 +100,18 @@ program parquet_read
         confirm number `infrom'
         if ( `infrom' == 0 ) local infrom 1
         if ( `infrom' < 0 ) {
-            _assert("`into'" == "l"), msg("Cannot read from a negative number")
+            _assert(inlist("`into'", "l", "")), msg("Cannot read from a negative number")
         }
     }
 
     if ( "`into'" == "l" ) local into
-    if ( "`into'" != "" ) confirm number `into'
+    if ( "`into'" != "" ) {
+        confirm number `into'
+        if ( `into' < 0 ) {
+            disp as err "Cannot read from a negative number"
+            exit 198
+        }
+    }
 
     * Initialize scalars
     * ------------------
@@ -229,18 +240,26 @@ program parquet_read
 
     * TODO: Actually implement in range // 2018-10-31 01:01 EDT
     if ( `"`infrom'"' == "" ) local infrom 1
-    if ( `"`into'"'   == "" ) local into `=scalar(__sparquet_nrow)'
+    if ( `"`into'"' == "" ) {
+        local into = cond((`"`slash'"' == "") & (`"`in'"' != ""), `infrom', `=scalar(__sparquet_nrow)')
+    }
     if ( `"`in'"' != "" ) {
         if ( `infrom' < 0 ) {
-            local infrom = `into' + `infrom'
+            if ( `into' < 0 ) {
+                local infrom = `=scalar(__sparquet_nrow)' + `into' + 1
+                local into   = `infrom'
+            }
+            else {
+                local infrom = `into' + `infrom' + 1
+            }
         }
-        disp as err "Option in() not yet implemented."
-        exit 17042
     }
     if ( `into' > `=scalar(__sparquet_nrow)' ) {
         disp as err "Tried to read until row `into' but data had `=scalar(__sparquet_nrow)' rows."
         exit 198
     }
+    scalar __sparquet_infrom = `infrom'
+    scalar __sparquet_into   = `into'
 
     * TODO: Figure out how to map arbitrary strings into unique stata variable names
     clear
@@ -255,7 +274,7 @@ program parquet_read
     * Read parquet file!
     * ------------------
 
-    cap noi plugin call parquet_plugin `cnames' `in', read `"`using'"'
+    cap noi plugin call parquet_plugin `cnames', read `"`using'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
@@ -285,10 +304,9 @@ program parquet_write
     [                     ///
            replace        ///
            rgsize(real 0) ///
-           debug_lowlevel ///
+           lowlevel       ///
            fixedlen       ///
     ]
-    local lowlevel `debug_lowlevel'
 
     if ( "`lowlevel'" != "" ) {
         disp as err "{bf:Warning:} Low-level parser should only be used for debugging."
@@ -403,6 +421,9 @@ program clean_exit
     cap scalar drop __sparquet_lowlevel
     cap scalar drop __sparquet_fixedlen
     cap scalar drop __sparquet_rg_size
+    cap scalar drop __sparquet_threads
+    cap scalar drop __sparquet_infrom
+    cap scalar drop __sparquet_into
     cap matrix drop __sparquet_coltypes
     cap matrix drop __sparquet_colix
     cap mata: mata drop __sparquet_colix
