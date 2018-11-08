@@ -1,4 +1,4 @@
-*! version 0.4.2 02Nov2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.5.0 07Nov2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -34,6 +34,9 @@ program parquet
             parquet_write using `0'
         }
     }
+    else if ( inlist(`"`todo'"', "desc", "descr", "descri", "describ", "describe") ) {
+        parquet_desc `0'
+    }
     else {
         disp as err `"Unknown sub-comand `todo'"'
         exit 198
@@ -45,17 +48,21 @@ end
 
 capture program drop parquet_read
 program parquet_read
-    * TODO: Parse column selector
-    syntax [anything]          ///
-           using/,             ///
+    syntax [namelist]          /// varlist to read; must be 'namelist' because the
+                               /// variables do not exist in memory.  The names must be
+                               /// the Stata equivalent of the parquet name. E.g. 'foo
+                               /// bar' must be foo_bar
+                               ///
+           using/,             /// parquet file to read
     [                          ///
-           clear               ///
-           in(str)             ///
-           lowlevel            ///
-           threads(int 1)      ///
-           strbuffer(int 65)   ///
-           nostrscan           ///
-           STRSCANner(real -1) ///
+           clear               /// clear the data in memory
+           in(str)             /// read in range
+           highlevel           /// use the high-level reader
+           lowlevel            /// use the low-level reader
+           threads(int 1)      /// try multi-threading; high-level only
+           strbuffer(int 65)   /// fall back to string buffer if length not parsed
+           nostrscan           /// do not scan string lengths (use strbuffer)
+           STRSCANner(real -1) /// scan string lengths (ever obs)
     ]
 
     qui desc, short
@@ -63,16 +70,18 @@ program parquet_read
         error 4
     }
 
-    if ( "`lowlevel'" != "" ) {
-        disp as err "{bf:Warning:} Low-level parser should only be used for debugging."
-    }
+    if ( "`highlevel'" == "" ) local lowlevel lowlevel
+
+    if ( `strscanner' == -1 ) local strscanner .
+
     if ( (`"`in'"' != "") & (`"`lowlevel'"' == "") ) {
-        disp as err "Option in() only available with -lowlevel-."
-        exit 17042
+        disp as err "Warning: Option in() not efficient with -highlevel-"
     }
 
     * TODO: this only seems to work in Stata/MP; is it also limited to
-    * the # of processors in Stata?
+    * the # of processors in Stata? It seems to slow it down quite a
+    * bit, so maybe take out?
+
     if ( (`threads' > 1) & ("`lowlevel'" != "") ) {
         disp as err "Option -threads()- not available with -lowlevel-"
         exit 198
@@ -89,35 +98,8 @@ program parquet_read
         disp as err "{bf:Warning:} Option -threads()- is experimental and often slower."
     }
 
-    * Parse in range
-    * --------------
-
-    gettoken infrom into: in, p(/)
-    gettoken slash into: into, p(/)
-
-    if ( "`infrom'" == "f" ) local infrom 1
-    if ( "`infrom'" !=  "" ) {
-        confirm number `infrom'
-        if ( `infrom' == 0 ) local infrom 1
-        if ( `infrom' < 0 ) {
-            _assert(inlist("`into'", "l", "")), msg("Cannot read from a negative number")
-        }
-    }
-
-    if ( "`into'" == "l" ) local into
-    if ( "`into'" != "" ) {
-        confirm number `into'
-        if ( `into' < 0 ) {
-            disp as err "Cannot read from a negative number"
-            exit 198
-        }
-    }
-
     * Initialize scalars
     * ------------------
-
-    * TODO: Strings are initialized with length from scanning a
-    * sub-sample of the variables (first strscanner rows). Improve?
 
     scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
     scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
@@ -158,13 +140,75 @@ program parquet_read
         clean_exit
         exit `rc'
     }
-    * scalar list
     check_matsize, nvars(`=scalar(__sparquet_ncol)')
 
-    if ( "`strscan'" != "nostrscan" ) {
-        local strscanner = cond(`strscanner' > 0, `strscanner', `=2^16')
+    * Parse in range
+    * --------------
+
+    gettoken infrom into: in,   p(/)
+    gettoken slash  into: into, p(/)
+
+    if ( "`infrom'" == "f" ) local infrom 1
+    if ( "`infrom'" !=  "" ) {
+        confirm number `infrom'
+        if ( `infrom' == 0 ) local infrom 1
+        if ( `infrom' < 0 ) {
+            _assert(inlist("`into'", "l", "")), msg("Cannot read from a negative number")
+        }
     }
-    scalar __sparquet_strscan = cond(`strscanner' == ., `=scalar(__sparquet_nrow)', `strscanner')
+
+    if ( "`into'" == "l" ) local into
+    if ( "`into'" != "" ) {
+        confirm number `into'
+        if ( `into' < 0 ) {
+            disp as err "Cannot read from a negative number"
+            exit 198
+        }
+    }
+
+    if ( `"`infrom'"' == "" ) local infrom 1
+    if ( `"`into'"' == "" ) {
+        local into = cond((`"`slash'"' == "") & (`"`in'"' != ""), `infrom', `=scalar(__sparquet_nrow)')
+    }
+    if ( `"`in'"' != "" ) {
+        if ( `infrom' < 0 ) {
+            if ( `into' < 0 ) {
+                local infrom = `=scalar(__sparquet_nrow)' + `into' + 1
+                local into   = `infrom'
+            }
+            else {
+                local infrom = `into' + `infrom' + 1
+            }
+        }
+    }
+    if ( `into' > `=scalar(__sparquet_nrow)' ) {
+        disp as err "Tried to read until row `into' but data had `=scalar(__sparquet_nrow)' rows."
+        exit 198
+    }
+    scalar __sparquet_infrom = `infrom'
+    scalar __sparquet_into   = `into'
+
+    * Column names
+    * ------------
+
+    tempfile colnames
+    cap noi plugin call parquet_plugin, colnames `"`using'"' `"`colnames'"'
+    if ( _rc == -1 ) {
+        disp as err "Parquet library error."
+        clean_exit
+        exit 198
+    }
+    else if ( _rc ) {
+        local rc = _rc
+        disp as err "Unable to parse column info."
+        clean_exit
+        exit `rc'
+    }
+    mata: __sparquet_colnames = __sparquet_getcolnames(`"`colnames'"')
+    mata: __sparquet_colix    = __sparquet_getcolix(__sparquet_colnames, tokens(`"`namelist'"'))
+    mata: __sparquet_varnames = __sparquet_makenames(__sparquet_colnames[__sparquet_colix])
+    mata: st_matrix("__sparquet_colix", rowshape(__sparquet_colix, 1))
+    mata: st_numscalar("__sparquet_ncol", length(__sparquet_colix))
 
     * Column types
     * ------------
@@ -177,9 +221,32 @@ program parquet_read
     * str#:    #, ByteArray
     * strL:    #? .?, not yet implemented
 
-    tempfile colnames
+    if ( "`strscan'" != "nostrscan" ) {
+        if ( `strscanner' == . ) {
+            local strscanner = `=scalar(__sparquet_nrow)'
+        }
+        else if ( `strscanner' > 0 ) {
+            if ( `strscanner' < 1 ) {
+                local strscanner = ceil(`strscanner' * `=scalar(__sparquet_nrow)')
+            }
+            else {
+                local strscanner = ceil(`strscanner')
+            }
+        }
+        else if ( `strscanner' == 0 ){
+            local strscanner = 0
+        }
+        else {
+            local strscanner = `=2^16'
+        }
+    }
+    else {
+        local strscanner = 0
+    }
+    scalar __sparquet_strscan = `strscanner'
+
     matrix __sparquet_coltypes = J(1, `=scalar(__sparquet_ncol)', .)
-    cap noi plugin call parquet_plugin, coltypes `"`using'"' `"`colnames'"'
+    cap noi plugin call parquet_plugin, coltypes `"`using'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
@@ -191,28 +258,11 @@ program parquet_read
         clean_exit
         exit `rc'
     }
-    * matrix list __sparquet_coltypes
-    mata: __sparquet_colnames = __sparquet_getcolnames(`"`colnames'"')
-    mata: __sparquet_colix    = __sparquet_getcolix(__sparquet_colnames, tokens(`"`anything'"'))
-    mata: __sparquet_varnames = __sparquet_makenames(__sparquet_colnames[__sparquet_colix])
-    mata: st_matrix("__sparquet_colix", rowshape(__sparquet_colix, 1))
-    mata: st_numscalar("__sparquet_ncol", length(__sparquet_colix))
-
-    tempname __sparquet_coltypes
-    matrix `__sparquet_coltypes' = J(1, `=scalar(__sparquet_ncol)', .)
-    forvalues j = 1 / `=scalar(__sparquet_ncol)' {
-        matrix `__sparquet_coltypes'[1, `j'] = __sparquet_coltypes[1, __sparquet_colix[1, `j']]
-    }
-    matrix __sparquet_coltypes = `__sparquet_coltypes'
-    matrix drop `__sparquet_coltypes'
-    * matrix list __sparquet_coltypes
-    * matrix list __sparquet_colix
 
     * Generate empty dataset
     * ----------------------
 
     * TODO: How to code strL? Even possible?
-    * TODO: How to code str#? Get max length of ByteArray?
     * TODO: How to parse column selector? Closest match?
     local ctypes
     local cnames
@@ -238,30 +288,9 @@ program parquet_read
     check_reserved `cnames'
     local cnames `r(varlist)'
 
-    * TODO: Actually implement in range // 2018-10-31 01:01 EDT
-    if ( `"`infrom'"' == "" ) local infrom 1
-    if ( `"`into'"' == "" ) {
-        local into = cond((`"`slash'"' == "") & (`"`in'"' != ""), `infrom', `=scalar(__sparquet_nrow)')
-    }
-    if ( `"`in'"' != "" ) {
-        if ( `infrom' < 0 ) {
-            if ( `into' < 0 ) {
-                local infrom = `=scalar(__sparquet_nrow)' + `into' + 1
-                local into   = `infrom'
-            }
-            else {
-                local infrom = `into' + `infrom' + 1
-            }
-        }
-    }
-    if ( `into' > `=scalar(__sparquet_nrow)' ) {
-        disp as err "Tried to read until row `into' but data had `=scalar(__sparquet_nrow)' rows."
-        exit 198
-    }
-    scalar __sparquet_infrom = `infrom'
-    scalar __sparquet_into   = `into'
+    * Read parquet file!
+    * ------------------
 
-    * TODO: Figure out how to map arbitrary strings into unique stata variable names
     clear
     qui set obs `=`into'-`infrom'+1'
     mata: (void) st_addvar(tokens("`ctypes'"), tokens("`cnames'"))
@@ -270,9 +299,6 @@ program parquet_read
         mata: st_local("vname", __sparquet_varnames[`j'])
         label var `vname' `"`vlabel'"'
     }
-
-    * Read parquet file!
-    * ------------------
 
     cap noi plugin call parquet_plugin `cnames', read `"`using'"'
     if ( _rc == -1 ) {
@@ -298,14 +324,14 @@ end
 
 capture program drop parquet_write
 program parquet_write
-    syntax [varlist]      ///
-           using/         ///
-           [in],          ///
+    syntax [varlist]      /// varlist to export
+           using/         /// target dataset file
+           [in],          /// export in range
     [                     ///
-           replace        ///
-           rgsize(real 0) ///
-           lowlevel       ///
-           fixedlen       ///
+           replace        /// replace target file, if it exists
+           rgsize(real 0) /// row-group size (should be large; default is N by nvars)
+           lowlevel       /// (debugging only) use low-level writer
+           fixedlen       /// (debugging only) export strings as fixed length
     ]
 
     if ( "`lowlevel'" != "" ) {

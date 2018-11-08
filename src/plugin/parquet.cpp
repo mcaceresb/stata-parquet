@@ -2,16 +2,16 @@
  * Program: parquet.cpp
  * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
  * Created: Fri Mar  3 19:42:00 EDT 2017
- * Updated: Fri Nov  2 09:51:36 EDT 2018
+ * Updated: Wed Nov  7 21:59:37 EST 2018
  * Purpose: Stata plugin to read and write to the parquet file format
  * Note:    See stata.com/plugins for more on Stata plugins
- * Version: 0.4.2
+ * Version: 0.5.0
  *********************************************************************/
 
 /**
  * @file parquet.cpp
  * @author Mauricio Caceres Bravo
- * @date 02 Nov 2018
+ * @date 07 Nov 2018
  * @brief Stata plugin
  *
  * This file should only ever be called from parquet.ado
@@ -87,6 +87,7 @@ STDLL stata_call(int argc, char *argv[])
      *     - check:     Exit with 0 status. This just tests the plugin can be *
      *                  called from Stata without crashing.                   *
      *     - shape:     (read) Number of rows and columns                     *
+     *     - colnames:  (read) Put column names into file                     *
      *     - coltypes:  (read) Put column types into matrix                   *
      *     - read:      Read parquet file into Stata                          *
      *     - write:     Write Stata varlist to parquet file                   *
@@ -102,14 +103,15 @@ STDLL stata_call(int argc, char *argv[])
     else if ( strcmp(todo, "shape") == 0 ) {
         if ( (rc = sf_ll_shape(fname, DEBUG)) ) goto exit;
     }
-    else if ( strcmp(todo, "coltypes") == 0 ) {
-        // TODO: How to parse string type lengths?
-        // TODO: How to discern string from binary in ByteArray?
+    else if ( strcmp(todo, "colnames") == 0 ) {
         flength = strlen(argv[2]) + 1;
         SPARQUET_CHAR (fcols, flength);
         strcpy (fcols, argv[2]);
-
-        if ( (rc = sf_ll_coltypes(fname, fcols, DEBUG, strbuffer)) ) goto exit;
+        if ( (rc = sf_ll_colnames(fname, fcols, DEBUG)) ) goto exit;
+    }
+    else if ( strcmp(todo, "coltypes") == 0 ) {
+        // TODO: How to discern string from binary in ByteArray?
+        if ( (rc = sf_ll_coltypes(fname, strbuffer, DEBUG)) ) goto exit;
     }
     else if ( strcmp(todo, "read") == 0 ) {
         if ( lowlevel ) {

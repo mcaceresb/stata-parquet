@@ -1,7 +1,10 @@
 // Stata function: High-level write full varlist
-// __sparquet_ncol must exist and be a numeric scalar with the # of cols
-// __sparquet_coltypes must exist and be a 1 by # col matrix
-// __sparquet_rg_size must exist and be a 1 by # col matrix
+//
+// matrix
+//     __sparquet_coltypes
+// scalars
+//     __sparquet_ncol
+//     __sparquet_rg_size
 ST_retcode sf_hl_write_varlist(
     const char *fname,
     const char *fcols,
@@ -10,10 +13,8 @@ ST_retcode sf_hl_write_varlist(
     const int strbuffer)
 {
 
-    ST_retcode rc = 0, any_rc = 0;
     ST_double z;
-    SPARQUET_CHAR(vmatrix, 32);
-    SPARQUET_CHAR(vscalar, 32);
+    ST_retcode rc = 0, any_rc = 0;
     SPARQUET_CHAR(vstr, strbuffer);
 
     int64_t in1 = SF_in1();
@@ -29,38 +30,18 @@ ST_retcode sf_hl_write_varlist(
     // Get column and type info from Stata
     // -----------------------------------
 
-    memset(vscalar, '\0', 32);
-    memcpy(vscalar, "__sparquet_rg_size", 18);
-    if ( (rc = SF_scal_use(vscalar, &z)) ) {
-        any_rc = rc;
-    }
-    else {
-        rg_size = (int64_t) z;
-    }
+    if ( (rc = sf_scalar_int("__sparquet_rg_size", 18, &rg_size)) ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_ncol",    15, &ncol))    ) any_rc = rc;
 
-    memset(vscalar, '\0', 32);
-    memcpy(vscalar, "__sparquet_ncol", 15);
-    if ( (rc = SF_scal_use(vscalar, &z)) ) {
-        any_rc = rc;
-    }
-    else {
-        ncol = (int64_t) z;
-    }
     sf_printf_debug(debug, "# columns: %ld\n", ncol);
 
-    ST_double vtypes_dbl[ncol];
     int64_t vtypes[ncol];
     std::string vnames[ncol];
 
     std::vector<std::shared_ptr<arrow::Field>> vfields(ncol);
     std::vector<std::shared_ptr<arrow::Array>> varrays(ncol);
 
-    memcpy(vmatrix, "__sparquet_coltypes", 19);
-    for (j = 0; j < ncol; j++) {
-        if ( (rc = SF_mat_el(vmatrix, 1, j + 1, vtypes_dbl + j)) ) goto exit;
-        vtypes[j] = (int64_t) vtypes_dbl[j];
-        // sf_printf_debug(2, "\tctype: %ld\n", vtypes[j]);
-    }
+    if ( (rc = sf_matrix_int("__sparquet_coltypes", 19, ncol, vtypes)) ) any_rc = rc;
 
     // Get variable names
     // ------------------
@@ -215,9 +196,9 @@ ST_retcode sf_hl_write_varlist(
                 parquet::arrow::WriteTable(*table, arrow::default_memory_pool(), outfile, rg_size));
 
         sf_running_timer (&timer, "Wrote table to file");
-        sf_printf_debug(verbose, "\t%s\n", fname);
+        sf_printf_debug(verbose, "\t%s\n",          fname);
         sf_printf_debug(verbose, "\t%ld columns\n", ncol);
-        sf_printf_debug(verbose, "\t%ld rows\n", N);
+        sf_printf_debug(verbose, "\t%ld rows\n",    N);
 
         if ( warn_extended > 0 ) {
             sf_printf("Warning: %ld extended missing values coerced to NaN.\n", warn_extended);

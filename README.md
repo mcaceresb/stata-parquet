@@ -7,11 +7,18 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.4.2 02Nov2018`
+`version 0.5.0 07Nov2018`
+
+Remarks
+-------
+
+The C++ API has some limitations that are hard to work around.
+[`stataParquet`](https://github.com/kylebarron/stataParquet) by
+@kylebarron is a (work-in-progress) parquet reader and writer that uses
+the Stata Java API, which should circumvent limitations of the C++ API.
 
 Installation
 ------------
-
 
 You need to first install:
 
@@ -55,24 +62,20 @@ parquet save auto.parquet, replace
 parquet use auto.parquet, clear
 desc
 
-parquet use price make gear_ratio using auto.parquet, clear
-parquet save gear_ratio make using auto.parquet, replace
+parquet use price make gear_ratio using auto.parquet, clear in(10/20)
+parquet save gear_ratio make using auto.parquet in 5/6, replace
 ```
 
 Limitations
 -----------
 
-This is an alpha release and there are several important limitations:
-
-- Maximum string widths are not generally stored in `.parquet` files
-  (as far as I can tell). The default behavior is to try and guess the
-  string length by scanning the first 2^16 rows of the file; control
-  this via option `strscan()`.
-- Writing `strL` variables are not supported.
+- Writing `strL` variables is not yet supported.
 - Reading binary ByteArray data is not supported, only strings.
 - `Int96` variables is not supported, as is has no direct Stata counterpart.
-
-See the TODO section for more.
+- Maximum string widths are not generally stored in `.parquet` files (as
+  far as I can tell). The default behavior is to scan string columns
+  to get the largest string, but it can be time-intensive. Adjust this
+  behavior via `strscan()` and `strbuffer()`.
 
 TODO
 ----
@@ -80,10 +83,10 @@ TODO
 Some features that ought to be implemented:
 
 - [ ] `parquet desc`
-- [X] `parquet use` in range (only low-level implemented).
-- [ ] `parquet use` in range for high-level reader..
-- [X] Regular missing value support (high-level read/write only).
 - [ ] Option `skip` for columns that are in non-readable formats?
+- [X] `parquet use` in range (only low-level implemented).
+- [X] `parquet use` in range for high-level reader (though not as efficient).
+- [X] Regular missing value support (high-level read/write only).
 - [X] No variables (raise error).
 - [X] No obs (raise error).
 

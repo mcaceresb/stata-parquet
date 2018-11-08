@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.4.2 02Nov2018}{...}
+{* *! version 0.5.0 07Nov2018}{...}
 {viewerdialog parquet "dialog parquet"}{...}
 {vieweralsosee "[R] parquet" "mansection R parquet"}{...}
 {viewerjumpto "Syntax" "parquet##syntax"}{...}
@@ -28,19 +28,21 @@
 {syntab :Read}
 {synopt :{opt clear}} Clear the data in memory.
 {p_end}
+{synopt :{opt in(from/to)}} Import observations in range.
+{p_end}
 {synopt :{opt nostrscan}} Do not pre-scan data for string width; falls back to {opt strbuffer}.
 {p_end}
-{synopt :{opth strscan[(#)]}} Scan strings for max width. Default behavior scans 2^16 rows.
+{synopt :{bf:strscan[(#)]}} Scan strings for max width. Default behavior scans every row.
 {p_end}
-{synopt :{opt strbuffer(#)}} Allocate string buffer of size {opt strbuffer} if strscan returns 0.
+{synopt :{opt strbuffer(#)}} Allocate string buffer of size {opt strbuffer} (strscan fallback).
 {p_end}
-{synopt :{opt lowlevel}} Use the low-level reader instead of the high-level reader.
+{synopt :{opt highlevel}} Use the high-level reader instead of the low-level reader.
 {p_end}
 
 {syntab :Write}
 {synopt :{opt replace}} Replace the target file.
 {p_end}
-{synopt :{opt rgsize}} Use a row group size of {opt rgsize}; ignored with {opt lowlevel}.
+{synopt :{opth rgsize(real)}} Use a row group size of {opt rgsize}; ignored with {opt lowlevel}.
 {p_end}
 {synopt :{opt fixedlen}} Export strings as fixed length; requires option {opt lowlevel}.
 {p_end}
@@ -66,6 +68,9 @@ in Stata for Unix (Linux).
 {phang2}{cmd:. parquet use auto.parquet,  clear}{p_end}
 {phang2}{cmd:. compress}{p_end}
 {phang2}{cmd:. desc}{p_end}
+
+{phang2}{cmd:. parquet use price make gear_ratio using auto.parquet, clear in(10/20)}{p_end}
+{phang2}{cmd:. parquet save gear_ratio make using auto.parquet in 5/6, replace      }{p_end}
 
 {marker author}{...}
 {title:Author}

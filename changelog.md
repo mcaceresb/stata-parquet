@@ -1,6 +1,17 @@
 Change Log
 ==========
 
+## parquet-0.5.0 (2018-11-08)
+
+### Features
+
+- `highlevel` reader can use option `in()`, but it is not as efficient.
+
+## Notes
+
+- reader scans the entire string column by default, which might be
+  slower but I prefer lossless reads in this case.
+
 ## parquet-0.4.2 (2018-11-02)
 
 ### Features
