@@ -9,14 +9,6 @@ Currently this package is only available in Stata for Unix (Linux).
 
 `version 0.5.0 07Nov2018`
 
-Remarks
--------
-
-The C++ API has some limitations that are hard to work around.
-[`stataParquet`](https://github.com/kylebarron/stataParquet) by
-@kylebarron is a (work-in-progress) parquet reader and writer that uses
-the Stata Java API, which should circumvent limitations of the C++ API.
-
 Installation
 ------------
 
