@@ -1,7 +1,10 @@
 // Stata function: Low-level write full varlist
-// __sparquet_ncol must exist and be a numeric scalar with the # of cols
-// __sparquet_coltypes must exist and be a 1 by # col matrix
-// __sparquet_fixedlen must exist and be a 1 by # col matrix
+//
+// matrix
+//     __sparquet_coltypes
+// scalars
+//     __sparquet_ncol
+//     __sparquet_fixedlen
 ST_retcode sf_ll_write_varlist(
     const char *fname,
     const char *fcols,
@@ -44,43 +47,32 @@ ST_retcode sf_ll_write_varlist(
     // Get column and type info from Stata
     // -----------------------------------
 
-    memset(vscalar, '\0', 32);
-    memcpy(vscalar, "__sparquet_fixedlen", 19);
-    if ( (rc = SF_scal_use(vscalar, &z)) ) {
-        any_rc = rc;
-    }
-    else {
-        fixedlen = (int64_t) z;
-    }
+    if ( (rc = sf_scalar_int("__sparquet_fixedlen", 19, &fixedlen)) ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_ncol",     15, &ncol))     ) any_rc = rc;
 
-    memset(vscalar, '\0', 32);
-    memcpy(vscalar, "__sparquet_ncol", 15);
-    if ( (rc = SF_scal_use(vscalar, &z)) ) {
-        any_rc = rc;
-    }
-    else {
-        ncol = (int64_t) z;
-    }
     sf_printf_debug(debug, "# columns: %ld\n", ncol);
 
-    ST_double vtypes_dbl[ncol];
     int64_t vtypes[ncol];
     std::string vnames[ncol];
 
     std::vector<std::shared_ptr<arrow::Field>> vfields(ncol);
     std::vector<std::shared_ptr<arrow::Array>> varrays(ncol);
 
-    memcpy(vmatrix, "__sparquet_coltypes", 19);
-    for (j = 0; j < ncol; j++) {
-        if ( (rc = SF_mat_el(vmatrix, 1, j + 1, vtypes_dbl + j)) ) goto exit;
-        vtypes[j] = (int64_t) vtypes_dbl[j];
-        // sf_printf_debug(2, "\tctype: %ld\n", vtypes[j]);
-    }
+    if ( (rc = sf_matrix_int("__sparquet_coltypes", 19, ncol, vtypes)) ) any_rc = rc;
 
     // Get variable names
     // ------------------
 
-    if ( any_rc ) goto exit;
+    if ( any_rc ) {
+        rc = any_rc;
+        goto exit;
+    }
+
+    if ( N == 0 ) {
+        sf_errprintf("No observations\n");
+        rc = 2000;
+        goto exit;
+    }
 
     j = 0;
     fstream.open(fcols);
@@ -221,7 +213,7 @@ ST_retcode sf_ll_write_varlist(
                         bool_writer->WriteBatch(1, nullptr, nullptr, &vbool);
                     }
                     else {
-                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        sf_errprintf("Low-level writer does not supprot missing values.\n");
                         rc = 17042;
                         goto exit;
                         if ( z > SV_missval ) {
@@ -240,7 +232,7 @@ ST_retcode sf_ll_write_varlist(
                         int32_writer->WriteBatch(1, nullptr, nullptr, &vint32);
                     }
                     else {
-                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        sf_errprintf("Low-level writer does not supprot missing values.\n");
                         rc = 17042;
                         goto exit;
                         if ( z > SV_missval ) {
@@ -259,7 +251,7 @@ ST_retcode sf_ll_write_varlist(
                         int32_writer->WriteBatch(1, nullptr, nullptr, &vint32);
                     }
                     else {
-                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        sf_errprintf("Low-level writer does not supprot missing values.\n");
                         rc = 17042;
                         goto exit;
                         if ( z > SV_missval ) {
@@ -278,7 +270,7 @@ ST_retcode sf_ll_write_varlist(
                         float_writer->WriteBatch(1, nullptr, nullptr, &vfloat);
                     }
                     else {
-                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        sf_errprintf("Low-level writer does not supprot missing values.\n");
                         rc = 17042;
                         goto exit;
                         if ( z > SV_missval ) {
@@ -297,7 +289,7 @@ ST_retcode sf_ll_write_varlist(
                         double_writer->WriteBatch(1, nullptr, nullptr, &vdouble);
                     }
                     else {
-                        sf_errprintf("Lowl-evel writer does not supprot missing values.\n");
+                        sf_errprintf("Low-level writer does not supprot missing values.\n");
                         rc = 17042;
                         goto exit;
                         if ( z > SV_missval ) {
