@@ -7,7 +7,7 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.5.0 07Nov2018`
+`version 0.5.1 08Nov2018`
 
 Installation
 ------------

@@ -2,16 +2,16 @@
  * Program: parquet.cpp
  * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
  * Created: Fri Mar  3 19:42:00 EDT 2017
- * Updated: Wed Nov  7 21:59:37 EST 2018
+ * Updated: Thu Nov  8 20:43:59 EST 2018
  * Purpose: Stata plugin to read and write to the parquet file format
  * Note:    See stata.com/plugins for more on Stata plugins
- * Version: 0.5.0
+ * Version: 0.5.1
  *********************************************************************/
 
 /**
  * @file parquet.cpp
  * @author Mauricio Caceres Bravo
- * @date 07 Nov 2018
+ * @date 08 Nov 2018
  * @brief Stata plugin
  *
  * This file should only ever be called from parquet.ado
@@ -37,10 +37,12 @@
 #include "reader_writer.h"
 #include "parquet.h"
 #include "parquet-utils.cpp"
+#include "parquet-utils-multi.cpp"
 #include "parquet-reader-ll.cpp"
-#include "parquet-writer-hl.cpp"
-#include "parquet-writer-ll.cpp"
 #include "parquet-reader-hl.cpp"
+#include "parquet-writer-ll.cpp"
+#include "parquet-writer-hl.cpp"
+#include "parquet-reader-ll-multi.cpp"
 
 // Syntax
 //     plugin call parquet varlist [in], todo file.parquet [file.colnames]
@@ -61,8 +63,7 @@
 STDLL stata_call(int argc, char *argv[])
 {
     ST_retcode rc = 0;
-    ST_double z;
-    size_t flength, strbuffer, lowlevel;
+    int64_t flength, strbuffer, lowlevel, multi, verbose;
 
     SPARQUET_CHAR(todo, 16);
     strcpy (todo, argv[0]);
@@ -71,25 +72,22 @@ STDLL stata_call(int argc, char *argv[])
     SPARQUET_CHAR (fname, flength);
     strcpy (fname, argv[1]);
 
-    SPARQUET_CHAR(vscalar, 32);
-    memcpy(vscalar, "__sparquet_strbuffer", 20);
-    if ( (rc = SF_scal_use(vscalar, &z)) ) goto exit;
-    strbuffer = (size_t) z;
-
-    memset(vscalar, '\0', 32);
-    memcpy(vscalar, "__sparquet_lowlevel", 20);
-    if ( (rc = SF_scal_use(vscalar, &z)) ) goto exit;
-    lowlevel = (size_t) z;
+    if ( (rc = sf_scalar_int("__sparquet_strbuffer", 20, &strbuffer)) ) goto exit;
+    if ( (rc = sf_scalar_int("__sparquet_lowlevel",  20, &lowlevel))  ) goto exit;
+    if ( (rc = sf_scalar_int("__sparquet_multi",     16, &multi))     ) goto exit;
+    if ( (rc = sf_scalar_int("__sparquet_verbose",   18, &verbose))   ) goto exit;
 
     /**************************************************************************
      * This is the main wrapper. We apply one of:                             *
      *                                                                        *
      *     - check:     Exit with 0 status. This just tests the plugin can be *
      *                  called from Stata without crashing.                   *
+     *                                                                        *
      *     - shape:     (read) Number of rows and columns                     *
      *     - colnames:  (read) Put column names into file                     *
      *     - coltypes:  (read) Put column types into matrix                   *
      *     - read:      Read parquet file into Stata                          *
+     *                                                                        *
      *     - write:     Write Stata varlist to parquet file                   *
      *                                                                        *
      **************************************************************************/
@@ -101,24 +99,44 @@ STDLL stata_call(int argc, char *argv[])
         goto exit;
     }
     else if ( strcmp(todo, "shape") == 0 ) {
-        if ( (rc = sf_ll_shape(fname, DEBUG)) ) goto exit;
+        if ( multi ) {
+            if ( (rc = sf_ll_shape_multi(fname, DEBUG)) ) goto exit;
+        }
+        else {
+            if ( (rc = sf_ll_shape(fname, DEBUG)) ) goto exit;
+        }
     }
     else if ( strcmp(todo, "colnames") == 0 ) {
         flength = strlen(argv[2]) + 1;
         SPARQUET_CHAR (fcols, flength);
         strcpy (fcols, argv[2]);
-        if ( (rc = sf_ll_colnames(fname, fcols, DEBUG)) ) goto exit;
+        if ( multi ) {
+            if ( (rc = sf_ll_colnames_multi(fname, fcols, DEBUG)) ) goto exit;
+        }
+        else {
+            if ( (rc = sf_ll_colnames(fname, fcols, DEBUG)) ) goto exit;
+        }
     }
     else if ( strcmp(todo, "coltypes") == 0 ) {
         // TODO: How to discern string from binary in ByteArray?
-        if ( (rc = sf_ll_coltypes(fname, strbuffer, DEBUG)) ) goto exit;
+        if ( multi ) {
+            if ( (rc = sf_ll_coltypes_multi(fname, strbuffer, DEBUG)) ) goto exit;
+        }
+        else {
+            if ( (rc = sf_ll_coltypes(fname, strbuffer, DEBUG)) ) goto exit;
+        }
     }
     else if ( strcmp(todo, "read") == 0 ) {
         if ( lowlevel ) {
-            if ( (rc = sf_ll_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+            if ( multi ) {
+                if ( (rc = sf_ll_read_varlist_multi(fname, verbose, DEBUG, strbuffer)) ) goto exit;
+            }
+            else {
+                if ( (rc = sf_ll_read_varlist(fname, verbose, DEBUG, strbuffer)) ) goto exit;
+            }
         }
         else {
-            if ( (rc = sf_hl_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+            if ( (rc = sf_hl_read_varlist(fname, verbose, DEBUG, strbuffer)) ) goto exit;
         }
     }
     else if ( strcmp(todo, "write") == 0 ) {
@@ -127,14 +145,14 @@ STDLL stata_call(int argc, char *argv[])
         SPARQUET_CHAR (fcols, flength);
         strcpy (fcols, argv[2]);
         if ( lowlevel ) {
-            if ( (rc = sf_ll_write_varlist(fname, fcols, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+            if ( (rc = sf_ll_write_varlist(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
         }
         else {
-            if ( (rc = sf_hl_write_varlist(fname, fcols, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+            if ( (rc = sf_hl_write_varlist(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
         }
     }
     else {
-        sf_printf_debug(VERBOSE, "Nothing to do\n");
+        sf_printf_debug(verbose, "Nothing to do\n");
         rc = 198;
         goto exit;
     }
