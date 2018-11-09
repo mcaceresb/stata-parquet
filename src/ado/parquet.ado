@@ -333,7 +333,7 @@ program parquet_read
         disp _char(9), "Groups:  `:list sizeof files'"
         disp _char(9), "Columns: `:list sizeof cnames'"
         disp _char(9), "Rows:    `=_N'"
-        disp ""
+        if ( "`verbose'" != "" ) disp ""
     }
 
     cap noi plugin call parquet_plugin `cnames', read `"`using'"'
