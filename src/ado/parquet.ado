@@ -331,8 +331,8 @@ program parquet_read
     if ( "`multi'" == "multi" ) {
         disp _char(9), "Dir:     `filedir'"
         disp _char(9), "Groups:  `:list sizeof files'"
-        disp _char(9), "Columns: `=_N'"
-        disp _char(9), "Rows:    `:list sizeof cnames'"
+        disp _char(9), "Columns: `:list sizeof cnames'"
+        disp _char(9), "Rows:    `=_N'"
         disp ""
     }
 
