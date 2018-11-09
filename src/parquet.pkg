@@ -1,4 +1,4 @@
-v 0.5.0
+v 0.5.1
 d
 d 'PARQUET': Read parquet files into Stata (testing)
 d
@@ -13,7 +13,7 @@ d
 d Author: ...
 d Support: ...
 d
-d Distribution-Date: 20181107
+d Distribution-Date: 20181108
 d
 f parquet.ado
 f parquet.sthlp

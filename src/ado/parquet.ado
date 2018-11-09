@@ -1,4 +1,4 @@
-*! version 0.5.0 07Nov2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.5.1 08Nov2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -9,6 +9,7 @@
 * 17102: Unsupported type (FixedLenByteArray)
 * 17103: Unsupported type (str#)
 * 17104: Unsupported type (strL)
+* 17201: Inconsistent column types
 * 198:   Generic error
 * Other: Stata error
 
@@ -70,12 +71,35 @@ program parquet_read
         error 4
     }
 
+    local cwd `"`c(pwd)'"'
+    cap cd `"`using'"'
+    if ( _rc ) {
+        confirm file `"`using'"'
+        local multi
+    }
+    else {
+        local multi multi
+        cap cd `"`cwd'"'
+        local files: dir `"`using'"' files "*.parquet"
+        foreach file of local files {
+            confirm file `"`using'/`file'"'
+        }
+        local filedir: copy local using
+        tempfile using
+        mata: __sparquet_putfilenames(`"`using'"', `"`filedir'"', sort(tokens(`"`files'"')', 1))
+    }
+
     if ( "`highlevel'" == "" ) local lowlevel lowlevel
 
     if ( `strscanner' == -1 ) local strscanner .
 
     if ( (`"`in'"' != "") & (`"`lowlevel'"' == "") ) {
         disp as err "Warning: Option in() not efficient with -highlevel-"
+    }
+
+    if ( (`"`multi'"' != "") & (`"`lowlevel'"' == "") ) {
+        disp as err "Multi-file reading not available with -highlevel-"
+        exit 198
     }
 
     * TODO: this only seems to work in Stata/MP; is it also limited to
@@ -101,12 +125,14 @@ program parquet_read
     * Initialize scalars
     * ------------------
 
+    scalar __sparquet_multi     = `"`multi'"' != ""
     scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
     scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
     scalar __sparquet_strbuffer = `strbuffer'
     scalar __sparquet_threads   = `threads'
     scalar __sparquet_nrow      = .
     scalar __sparquet_ncol      = .
+    scalar __sparquet_nread     = .
     matrix __sparquet_coltypes  = .
 
     * Check plugin loaded OK
@@ -350,6 +376,7 @@ program parquet_write
         disp as txt "Warning: -fixedlen- will pad strings of varying width."
     }
 
+    scalar __sparquet_multi     = 0
     scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
     scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
     scalar __sparquet_rg_size   = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
@@ -439,6 +466,8 @@ end
 * programs
 capture program drop clean_exit
 program clean_exit
+    cap scalar drop __sparquet_nread
+    cap scalar drop __sparquet_multi
     cap scalar drop __sparquet_nrow
     cap scalar drop __sparquet_ncol
     cap scalar drop __sparquet_strscan
@@ -496,6 +525,7 @@ end
 cap mata: mata drop __sparquet_getcolnames()
 cap mata: mata drop __sparquet_getcolix()
 cap mata: mata drop __sparquet_putcolnames()
+cap mata: mata drop __sparquet_putfilenames()
 cap mata: mata drop __sparquet_makenames()
 
 * TODO: Selector matches multiple columns? Repeated selector?
@@ -551,6 +581,21 @@ void function __sparquet_putcolnames(
     fh = fopen(fcol, "w")
     for (i = 1; i <= length(colnames); i++) {
         fwrite(fh, sprintf("%s\n", colnames[i]));
+    }
+    fclose(fh)
+}
+
+void function __sparquet_putfilenames(
+    string scalar fnames,
+    string scalar filedir,
+    string vector filenames)
+{
+    real scalar i
+    scalar fh
+
+    fh = fopen(fnames, "w")
+    for (i = 1; i <= length(filenames); i++) {
+        fwrite(fh, sprintf("%s\n", pathjoin(filedir, filenames[i])));
     }
     fclose(fh)
 }

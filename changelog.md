@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+## parquet-0.5.1 (2018-11-08)
+
+### Features
+
+- `parquet use` can concatenate every parquet file in a directory
+  if a directory is passed instead of a file.
+
 ## parquet-0.5.0 (2018-11-08)
 
 ### Features
