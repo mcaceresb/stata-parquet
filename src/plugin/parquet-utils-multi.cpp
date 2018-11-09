@@ -283,7 +283,8 @@ ST_retcode sf_ll_coltypes_multi(
                                     }
                                     if ( (*i) >= into ) break;
                                 }
-                                vtype = strlen > 0? strlen: ((*i) >= into? 1: strbuffer);
+                                // vtype = strlen > 0? strlen: ((*i) >= into? 1: strbuffer);
+                                vtype = strlen > 0? strlen: 1;
                                 if ( vtype > vtypes[j] ) vtypes[j] = vtype;
                             }
                             else {

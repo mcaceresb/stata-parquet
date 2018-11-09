@@ -63,7 +63,7 @@
 STDLL stata_call(int argc, char *argv[])
 {
     ST_retcode rc = 0;
-    int64_t flength, strbuffer, lowlevel, multi;
+    int64_t flength, strbuffer, lowlevel, multi, verbose;
 
     SPARQUET_CHAR(todo, 16);
     strcpy (todo, argv[0]);
@@ -75,6 +75,7 @@ STDLL stata_call(int argc, char *argv[])
     if ( (rc = sf_scalar_int("__sparquet_strbuffer", 20, &strbuffer)) ) goto exit;
     if ( (rc = sf_scalar_int("__sparquet_lowlevel",  20, &lowlevel))  ) goto exit;
     if ( (rc = sf_scalar_int("__sparquet_multi",     16, &multi))     ) goto exit;
+    if ( (rc = sf_scalar_int("__sparquet_verbose",   18, &verbose))   ) goto exit;
 
     /**************************************************************************
      * This is the main wrapper. We apply one of:                             *
@@ -128,14 +129,14 @@ STDLL stata_call(int argc, char *argv[])
     else if ( strcmp(todo, "read") == 0 ) {
         if ( lowlevel ) {
             if ( multi ) {
-                if ( (rc = sf_ll_read_varlist_multi(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+                if ( (rc = sf_ll_read_varlist_multi(fname, verbose, DEBUG, strbuffer)) ) goto exit;
             }
             else {
-                if ( (rc = sf_ll_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+                if ( (rc = sf_ll_read_varlist(fname, verbose, DEBUG, strbuffer)) ) goto exit;
             }
         }
         else {
-            if ( (rc = sf_hl_read_varlist(fname, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+            if ( (rc = sf_hl_read_varlist(fname, verbose, DEBUG, strbuffer)) ) goto exit;
         }
     }
     else if ( strcmp(todo, "write") == 0 ) {
@@ -144,14 +145,14 @@ STDLL stata_call(int argc, char *argv[])
         SPARQUET_CHAR (fcols, flength);
         strcpy (fcols, argv[2]);
         if ( lowlevel ) {
-            if ( (rc = sf_ll_write_varlist(fname, fcols, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+            if ( (rc = sf_ll_write_varlist(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
         }
         else {
-            if ( (rc = sf_hl_write_varlist(fname, fcols, VERBOSE, DEBUG, strbuffer)) ) goto exit;
+            if ( (rc = sf_hl_write_varlist(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
         }
     }
     else {
-        sf_printf_debug(VERBOSE, "Nothing to do\n");
+        sf_printf_debug(verbose, "Nothing to do\n");
         rc = 198;
         goto exit;
     }

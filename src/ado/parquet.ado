@@ -57,6 +57,7 @@ program parquet_read
            using/,             /// parquet file to read
     [                          ///
            clear               /// clear the data in memory
+           verbose             /// verbose
            in(str)             /// read in range
            highlevel           /// use the high-level reader
            lowlevel            /// use the low-level reader
@@ -125,6 +126,7 @@ program parquet_read
     * Initialize scalars
     * ------------------
 
+    scalar __sparquet_verbose   = `"`verbose'"' != ""
     scalar __sparquet_multi     = `"`multi'"' != ""
     scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
     scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
@@ -326,6 +328,14 @@ program parquet_read
         label var `vname' `"`vlabel'"'
     }
 
+    if ( "`multi'" == "multi" ) {
+        disp _char(9), "Dir:     `filedir'"
+        disp _char(9), "Groups:  `:list sizeof files'"
+        disp _char(9), "Columns: `=_N'"
+        disp _char(9), "Rows:    `:list sizeof cnames'"
+        disp ""
+    }
+
     cap noi plugin call parquet_plugin `cnames', read `"`using'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
@@ -355,6 +365,7 @@ program parquet_write
            [in],          /// export in range
     [                     ///
            replace        /// replace target file, if it exists
+           verbose        /// verbose
            rgsize(real 0) /// row-group size (should be large; default is N by nvars)
            lowlevel       /// (debugging only) use low-level writer
            fixedlen       /// (debugging only) export strings as fixed length
@@ -376,6 +387,7 @@ program parquet_write
         disp as txt "Warning: -fixedlen- will pad strings of varying width."
     }
 
+    scalar __sparquet_verbose   = `"`verbose'"' != ""
     scalar __sparquet_multi     = 0
     scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
     scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
