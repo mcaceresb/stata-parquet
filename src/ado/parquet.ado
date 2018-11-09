@@ -79,7 +79,7 @@ program parquet_read
     }
     else {
         local multi multi
-        cap cd `"`cwd'"'
+        qui cd `"`cwd'"'
         local files: dir `"`using'"' files "*.parquet"
         foreach file of local files {
             confirm file `"`using'/`file'"'

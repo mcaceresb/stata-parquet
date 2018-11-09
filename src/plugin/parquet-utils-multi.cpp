@@ -204,13 +204,11 @@ ST_retcode sf_ll_coltypes_multi(
                 parquet_reader = parquet::ParquetFileReader::OpenFile(fname, false);
                 file_metadata  = parquet_reader->metadata();
                 nrow_groups    = file_metadata->num_row_groups();
-                ncol = file_metadata->num_columns();
                 for (j = 0; j < ncol; j++) {
                     jsel = colix[j];
                     const parquet::ColumnDescriptor* descr =
                         file_metadata->schema()->Column(jsel);
 
-                    // sf_printf_debug(2, "\tColumn %ld: %s\n", jsel, descr->name().c_str());
                     switch (descr->physical_type()) {
                         case Type::BOOLEAN:    // byte
                             if ( nfiles == 0 ) {
