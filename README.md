@@ -77,8 +77,6 @@ If you don't want to use Conda, you can also build Apache Arrow and Apache Parqu
     stata -b "net install parquet, from(${PWD}/build) replace"
     ```
 
-4.
-
 Usage
 -----
 
