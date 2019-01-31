@@ -76,9 +76,10 @@ Some features that ought to be implemented:
 
 - [ ] `parquet desc`
 - [ ] Option `skip` for columns that are in non-readable formats?
-- [X] `parquet use` in range (only low-level implemented).
+- [X] `parquet use` in range for low-level reader.
 - [X] `parquet use` in range for high-level reader (though not as efficient).
-- [X] Regular missing value support (high-level read/write only).
+- [X] Read regular missing values.
+- [X] Write regular missing values (high-level only).
 - [X] No variables (raise error).
 - [X] No obs (raise error).
 
