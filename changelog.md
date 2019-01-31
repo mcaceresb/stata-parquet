@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+## parquet-0.5.2 (2019-01-30)
+
+### Features
+
+- `parquet save` now accepts `if`
+
 ## parquet-0.5.1 (2018-11-08)
 
 ### Features

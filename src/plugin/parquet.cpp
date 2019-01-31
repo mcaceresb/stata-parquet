@@ -2,16 +2,16 @@
  * Program: parquet.cpp
  * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
  * Created: Fri Mar  3 19:42:00 EDT 2017
- * Updated: Thu Nov  8 20:43:59 EST 2018
+ * Updated: Wed Jan 30 21:22:10 EST 2019
  * Purpose: Stata plugin to read and write to the parquet file format
  * Note:    See stata.com/plugins for more on Stata plugins
- * Version: 0.5.1
+ * Version: 0.5.2
  *********************************************************************/
 
 /**
  * @file parquet.cpp
  * @author Mauricio Caceres Bravo
- * @date 08 Nov 2018
+ * @date 30 Jan 2019
  * @brief Stata plugin
  *
  * This file should only ever be called from parquet.ado
@@ -45,7 +45,7 @@
 #include "parquet-reader-ll-multi.cpp"
 
 // Syntax
-//     plugin call parquet varlist [in], todo file.parquet [file.colnames]
+//     plugin call parquet varlist [if] [in], todo file.parquet [file.colnames]
 //
 // Scalars
 // 
@@ -53,8 +53,12 @@
 //     __sparquet_fixedlen
 //     __sparquet_nrow
 //     __sparquet_ncol
+//     __sparquet_nread
 //     __sparquet_strbuffer
 //     __sparquet_rg_size
+//     __sparquet_multi
+//     __sparquet_verbose
+//     __sparquet_if
 //
 // Matrices
 //
@@ -63,7 +67,7 @@
 STDLL stata_call(int argc, char *argv[])
 {
     ST_retcode rc = 0;
-    int64_t flength, strbuffer, lowlevel, multi, verbose;
+    int64_t flength, strbuffer, lowlevel, multi, verbose, ifobs;
 
     SPARQUET_CHAR(todo, 16);
     strcpy (todo, argv[0]);
@@ -76,6 +80,7 @@ STDLL stata_call(int argc, char *argv[])
     if ( (rc = sf_scalar_int("__sparquet_lowlevel",  20, &lowlevel))  ) goto exit;
     if ( (rc = sf_scalar_int("__sparquet_multi",     16, &multi))     ) goto exit;
     if ( (rc = sf_scalar_int("__sparquet_verbose",   18, &verbose))   ) goto exit;
+    if ( (rc = sf_scalar_int("__sparquet_if",        13, &ifobs))     ) goto exit;
 
     /**************************************************************************
      * This is the main wrapper. We apply one of:                             *
@@ -144,11 +149,21 @@ STDLL stata_call(int argc, char *argv[])
         flength = strlen(argv[2]) + 1;
         SPARQUET_CHAR (fcols, flength);
         strcpy (fcols, argv[2]);
-        if ( lowlevel ) {
-            if ( (rc = sf_ll_write_varlist(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
+        if ( ifobs ) {
+            if ( lowlevel ) {
+                if ( (rc = sf_ll_write_varlist_if(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
+            }
+            else {
+                if ( (rc = sf_hl_write_varlist_if(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
+            }
         }
         else {
-            if ( (rc = sf_hl_write_varlist(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
+            if ( lowlevel ) {
+                if ( (rc = sf_ll_write_varlist(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
+            }
+            else {
+                if ( (rc = sf_hl_write_varlist(fname, fcols, verbose, DEBUG, strbuffer)) ) goto exit;
+            }
         }
     }
     else {
