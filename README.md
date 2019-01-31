@@ -38,16 +38,16 @@ If you don't want to use Conda, you can also build Apache Arrow and Apache Parqu
 1. [Install dependencies for Arrow and Parquet](https://github.com/apache/arrow/tree/master/cpp#system-setup). On Ubuntu/Debian, you can use:
 
     ```bash
-    sudo apt-get install \
-        autoconf \
-        build-essential \
-        cmake \
-        libboost-dev \
+    sudo apt-get install        \
+        autoconf                \
+        build-essential         \
+        cmake                   \
+        libboost-dev            \
         libboost-filesystem-dev \
-        libboost-regex-dev \
-        libboost-system-dev \
-        python \
-        bison \
+        libboost-regex-dev      \
+        libboost-system-dev     \
+        python                  \
+        bison                   \
         flex
     ```
 
