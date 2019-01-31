@@ -1,14 +1,24 @@
 * Hive
 * ----
 
-!printf "\nimport pandas as pd \nimport numpy as np \nimport fastparquet as fp \ndf = pd.DataFrame(np.random.randint(0,100,size=(4, 4)), columns=list('ABCD')) \ndf['zz']= 'sayWhat?' \nfp.write('test.parquet', df, row_group_offsets=1, file_scheme='hive')" | python
-cap noi parquet use zz using test.parquet, clear
+!printf "\nimport pandas as pd \nimport numpy as np \nimport fastparquet as fp \ndf = pd.DataFrame(np.random.randint(0,100,size=(4, 4)), columns=list('ABCD')) \ndf['tmp']= '#GiraffesAreFake' \nfp.write('test.parquet', df, row_group_offsets=1, file_scheme='hive')" | python
+cap noi parquet use tmp using test.parquet, clear
 l
 
 * README
 * ------
 
 set linesize 128
+sysuse auto, clear
+parquet save auto.parquet if foreign, replace
+parquet use auto.parquet, clear
+assert foreign == 1
+
+sysuse auto, clear
+parquet save auto.parquet if log(price) < 9.5 & inlist(rep78, 1, 2, 3), replace
+parquet use auto.parquet, clear
+assert (log(price) < 9.5) & inlist(rep78, 1, 2, 3)
+
 sysuse auto, clear
 replace gear_ratio = .a in 2
 parquet save auto.parquet, replace

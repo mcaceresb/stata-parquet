@@ -1,4 +1,4 @@
-*! version 0.5.1 08Nov2018 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.5.2 30Jan2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -126,6 +126,7 @@ program parquet_read
     * Initialize scalars
     * ------------------
 
+    scalar __sparquet_if        = 0
     scalar __sparquet_verbose   = `"`verbose'"' != ""
     scalar __sparquet_multi     = `"`multi'"' != ""
     scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
@@ -362,6 +363,7 @@ capture program drop parquet_write
 program parquet_write
     syntax [varlist]      /// varlist to export
            using/         /// target dataset file
+           [if]           /// export if condition
            [in],          /// export in range
     [                     ///
            replace        /// replace target file, if it exists
@@ -387,6 +389,7 @@ program parquet_write
         disp as txt "Warning: -fixedlen- will pad strings of varying width."
     }
 
+    scalar __sparquet_if        = `"`if'"' != ""
     scalar __sparquet_verbose   = `"`verbose'"' != ""
     scalar __sparquet_multi     = 0
     scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
@@ -457,7 +460,7 @@ program parquet_write
     tempfile colnames
     mata: __sparquet_putcolnames(`"`colnames'"', tokens("`varlist'"))
 
-    cap noi plugin call parquet_plugin `varlist' `in', write `"`using'"' `"`colnames'"'
+    cap noi plugin call parquet_plugin `varlist' `if' `in', write `"`using'"' `"`colnames'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
         clean_exit
@@ -478,6 +481,7 @@ end
 * programs
 capture program drop clean_exit
 program clean_exit
+    cap scalar drop __sparquet_if
     cap scalar drop __sparquet_nread
     cap scalar drop __sparquet_multi
     cap scalar drop __sparquet_nrow

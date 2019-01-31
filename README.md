@@ -7,7 +7,18 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.5.1 08Nov2018`
+`version 0.5.2 30Jan2019`
+
+- [Installation](#installation)
+    - [Installation with Conda](#installation-with-conda)
+    - [Building Arrow/Parquet Manually](#building-arrowparquet-manually)
+- [Usage](#usage)
+    - [Usage with Conda](#usage-with-conda)
+    - [Usage with manual installation](#usage-with-manual-installation)
+    - [Examples](#examples)
+- [Limitations](#limitations)
+- [TODO](#todo)
+- [License](#license)
 
 Installation
 ------------
@@ -108,7 +119,7 @@ xstata
 ```
 
 
-### Usage with manual installation
+### Usage with Manual Installation
 
 Prepend the Arrow/Parquet installation directory to `LD_LIBRARY_PATH`. This
 needs to be set when Stata starts so that Stata can find the Arrow/Parquet
@@ -131,7 +142,7 @@ Then just start Stata with
 xstata
 ```
 
-### Usage in Stata
+### Examples
 
 `parquet save` and `parquet use` will save and load datasets in Parquet format, respectively. For example:
 
@@ -142,10 +153,10 @@ parquet use auto.parquet, clear
 desc
 
 parquet use price make gear_ratio using auto.parquet, clear in(10/20)
-parquet save gear_ratio make using auto.parquet in 5/6, replace
+parquet save gear_ratio make using auto.parquet in 5/6 if price > 5000, replace
 ```
 
-Note that the `if` clause is not supported.
+Note that the `if` clause is not supported by `parquet use`.
 
 Limitations
 -----------
@@ -189,7 +200,7 @@ Improve:
 - [ ] Boolean format to/from Stata.
 - [ ] Best way to transpose from column order to row order.
 
-LICENSE
+License
 -------
 
 `stata-parquet` is [MIT-licensed](https://github.com/mcaceresb/stata-parquet/blob/master/LICENSE).
