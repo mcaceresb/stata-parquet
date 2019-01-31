@@ -16,7 +16,9 @@ You need to first install:
 
 - The Apache Arrow C++ library.
 - The GNU Compiler Collection
-- The boost C++ libraries.
+- The Boost C++ libraries.
+
+### Installation with Conda
 
 The easiest way to do that is via `conda` (see [here](https://conda.io/docs/user-guide/install/index.html) for instructions on installing Anaconda):
 ```bash
@@ -29,8 +31,56 @@ make GCC=${CONDA_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=${CONDA_PREFIX}/inclu
 stata -b "net install parquet, from(${PWD}/build) replace"
 ```
 
+### Building Arrow/Parquet Manually
+
+If you don't want to use Conda, you can also build Apache Arrow and Apache Parquet manually.
+
+1. [Install dependencies for Arrow and Parquet](https://github.com/apache/arrow/tree/master/cpp#system-setup). On Ubuntu/Debian, you can use:
+
+    ```bash
+    sudo apt-get install        \
+        autoconf                \
+        build-essential         \
+        cmake                   \
+        libboost-dev            \
+        libboost-filesystem-dev \
+        libboost-regex-dev      \
+        libboost-system-dev     \
+        python                  \
+        bison                   \
+        flex
+    ```
+
+2. Build Arrow and Parquet:
+
+    ```bash
+    git clone https://github.com/apache/arrow.git
+    cd arrow/cpp
+    # Not sure if this is generally necessary; may be due to my firewall
+    # This changes the Apache mirror to the one at utah.edu
+    sed -i 's$http://archive.apache.org/dist/thrift$http://apache.cs.utah.edu/thrift$g' cmake_modules/ThirdpartyToolchain.cmake
+    mkdir release
+    cd release
+    cmake -DARROW_PARQUET=ON  ..
+    make arrow
+    sudo make install
+    make parquet
+    sudo make install
+    ```
+
+3. Build/Install `stata-parquet`:
+
+    ```bash
+    git clone https://github.com/mcaceresb/stata-parquet
+    cd stata-parquet
+    make all
+    stata -b "net install parquet, from(${PWD}/build) replace"
+    ```
+
 Usage
 -----
+
+### Usage with Conda
 
 Activate the Conda environment with
 
@@ -40,13 +90,50 @@ source activate stata-parquet
 
 Then be sure to start Stata via
 ```bash
-LD_LIBRARY_PATH=${CONDA_PREFIX}/lib xstata
+LD_LIBRARY_PATH=${CONDA_PREFIX}/lib:$LD_LIBRARY_PATH xstata
 ```
 
-(You could also run `export LD_LIBRARY_PATH=${CONDA_PREFIX}/lib` before each
-session or add `${CONDA_PREFIX}/lib` to `LD_LIBRARY_PATH` in your `~/.bashrc`.
-In both of these examples, make sure to replace `${CONDA_PREFIX}` with the
-absolute path it represents.) Then, from Stata
+Alternatively, you could add the following line to your `~/.bashrc` to not have
+to enter the `LD_LIBRARY_PATH` every time (make sure to replace
+`${CONDA_PREFIX}` with the absolute path it represents):
+
+```bash
+export LD_LIBRARY_PATH=${CONDA_PREFIX}/lib:$LD_LIBRARY_PATH
+```
+
+Then just start Stata with
+
+```
+xstata
+```
+
+
+### Usage with manual installation
+
+Prepend the Arrow/Parquet installation directory to `LD_LIBRARY_PATH`. This
+needs to be set when Stata starts so that Stata can find the Arrow/Parquet
+dependencies. For me, this directory was `/usr/local/lib`.
+
+```bash
+LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH xstata
+```
+
+Alternatively, you could add the following line to your `~/.bashrc` to not have
+to enter the `LD_LIBRARY_PATH` every time:
+
+```bash
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+```
+
+Then just start Stata with
+
+```
+xstata
+```
+
+### Usage in Stata
+
+`parquet save` and `parquet use` will save and load datasets in Parquet format, respectively. For example:
 
 ```stata
 sysuse auto, clear
@@ -57,6 +144,8 @@ desc
 parquet use price make gear_ratio using auto.parquet, clear in(10/20)
 parquet save gear_ratio make using auto.parquet in 5/6, replace
 ```
+
+Note that the `if` clause is not supported.
 
 Limitations
 -----------
