@@ -2,3 +2,5 @@ releases
 *.parquet
 lib/arrow
 build/
+lib/plugin
+stata.log

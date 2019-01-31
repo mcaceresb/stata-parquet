@@ -48,6 +48,7 @@ links:
 parquet: src/plugin/parquet.cpp src/plugin/spi/stplugin.cpp
 	mkdir -p ./build
 	$(GCC) $(CFLAGS) -o build/$(OUT) src/plugin/spi/stplugin.cpp src/plugin/parquet.cpp $(PARQUET)
+	mkdir -p lib/plugin/
 	cp build/*plugin lib/plugin/
 
 ## Copy Stata package files to ./build
