@@ -133,7 +133,7 @@ xstata
 
 ### Usage in Stata
 
-Then, from Stata `parquet save` will save a dataset to Parquet format and `parquet use` will load a dataset from Parquet format. For example:
+`parquet save` and `parquet use` will save and load datasets in Parquet format, respectively. For example:
 
 ```stata
 sysuse auto, clear
@@ -145,7 +145,7 @@ parquet use price make gear_ratio using auto.parquet, clear in(10/20)
 parquet save gear_ratio make using auto.parquet in 5/6, replace
 ```
 
-Note that the `if` clause to `parquet use` is not supported.
+Note that the `if` clause is not supported.
 
 Limitations
 -----------
