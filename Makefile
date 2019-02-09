@@ -78,6 +78,9 @@ test:
 # src/parquet.pkg
 # src/plugin/parquet.cpp
 # src/stata.toc
+#
+# _PREFIX=${HOME}/bulk/programs/miniconda3/envs/stata-parquet
+# make GCC=${_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=${_PREFIX}/include LIBS=${_PREFIX}/lib all replace test
 
 .PHONY: clean
 clean:

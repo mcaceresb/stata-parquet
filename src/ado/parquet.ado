@@ -1,4 +1,4 @@
-*! version 0.5.2 30Jan2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.5.3 08Feb2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -10,6 +10,8 @@
 * 17103: Unsupported type (str#)
 * 17104: Unsupported type (strL)
 * 17201: Inconsistent column types
+* 17301: Invalid row group (not in range)
+* 17302: Invalid row group (not in range)
 * 198:   Generic error
 * Other: Stata error
 
@@ -49,22 +51,24 @@ end
 
 capture program drop parquet_read
 program parquet_read
-    syntax [namelist]          /// varlist to read; must be 'namelist' because the
-                               /// variables do not exist in memory.  The names must be
-                               /// the Stata equivalent of the parquet name. E.g. 'foo
-                               /// bar' must be foo_bar
-                               ///
-           using/,             /// parquet file to read
-    [                          ///
-           clear               /// clear the data in memory
-           verbose             /// verbose
-           in(str)             /// read in range
-           highlevel           /// use the high-level reader
-           lowlevel            /// use the low-level reader
-           threads(int 1)      /// try multi-threading; high-level only
-           strbuffer(int 65)   /// fall back to string buffer if length not parsed
-           nostrscan           /// do not scan string lengths (use strbuffer)
-           STRSCANner(real -1) /// scan string lengths (ever obs)
+    syntax [namelist]           /// varlist to read; must be 'namelist' because the
+                                /// variables do not exist in memory.  The names must be
+                                /// the Stata equivalent of the parquet name. E.g. 'foo
+                                /// bar' must be foo_bar
+                                ///
+           using/,              /// parquet file to read
+    [                           ///
+           clear                /// clear the data in memory
+           verbose              /// verbose
+           rg(numlist)          /// read row groups
+           ROWGroups(numlist)   /// read row groups
+           in(str)              /// read in range
+           highlevel            /// use the high-level reader
+           lowlevel             /// use the low-level reader
+           threads(int 1)       /// try multi-threading; high-level only
+           strbuffer(int 65)    /// fall back to string buffer if length not parsed
+           nostrscan            /// do not scan string lengths (use strbuffer)
+           STRSCANner(real -1)  /// scan string lengths (ever obs)
     ]
 
     qui desc, short
@@ -72,6 +76,53 @@ program parquet_read
         error 4
     }
 
+    * Read row groups
+    if ( (`"`rg'"' != "") & (`"`rowgroups'"' != "") ) {
+        disp as err "rg() and rowgroups() are aliases; specify only one."
+        exit 198
+    }
+    else if ( `"`rowgroups'"' != "" ) {
+        local rg: copy local rowgroups
+    }
+    else if ( `"`rg'"' == "" ) {
+        local rg none
+    }
+
+    * TODO: Allow repeat values for fast append?
+    * NOTE: MUST be sorted
+    local rg: list uniq rg
+    local rg: list sort rg
+
+    if ( `"`rg'"' == `"none"' ) {
+        mata __sparquet_rowgix = 1
+    }
+    else {
+        mata __sparquet_rowgix = strtoreal(tokens(st_local("rg")))
+
+        cap mata assert(sum(round(__sparquet_rowgix) :!= __sparquet_rowgix) :== 0)
+        if ( _rc ) {
+            disp as err "Invalid row groups passed to rg()"
+            clean_exit
+            exit 198
+        }
+
+        cap mata assert(sum(__sparquet_rowgix :<= 0) == 0)
+        if ( _rc ) {
+            disp as err "Invalid row groups passed to rg()"
+            clean_exit
+            exit 198
+        }
+
+        cap mata assert(sum(__sparquet_rowgix :>= .) == 0)
+        if ( _rc ) {
+            disp as err "Invalid row groups passed to rg()"
+            clean_exit
+            exit 198
+        }
+    }
+    mata st_matrix("__sparquet_rowgix", __sparquet_rowgix)
+
+    * Try to read directory; otherwise it is a file
     local cwd `"`c(pwd)'"'
     cap cd `"`using'"'
     if ( _rc ) {
@@ -87,9 +138,22 @@ program parquet_read
         }
         local filedir: copy local using
         tempfile using
-        mata: __sparquet_putfilenames(`"`using'"', `"`filedir'"', sort(tokens(`"`files'"')', 1))
+        mata: __sparquet_filenames = sort(tokens(`"`files'"')', 1)
+        if ( `"`rg'"' != `"none"' ) {
+            cap mata: assert(max(__sparquet_rowgix) <= rows(__sparquet_filenames))
+            if ( _rc ) {
+                mata: errprintf("group %g not allowed; parquet dataset only has %g groups", /*
+                             */ max(__sparquet_rowgix), rows(__sparquet_filenames))
+                clean_exit
+                exit 198
+            }
+            mata: __sparquet_filenames = __sparquet_filenames[__sparquet_rowgix]
+            mata: st_local("files", invtokens(__sparquet_filenames'))
+        }
+        mata: __sparquet_putfilenames(`"`using'"', `"`filedir'"', __sparquet_filenames)
     }
 
+    * Misc options
     if ( "`highlevel'" == "" ) local lowlevel lowlevel
 
     if ( `strscanner' == -1 ) local strscanner .
@@ -136,6 +200,7 @@ program parquet_read
     scalar __sparquet_nrow      = .
     scalar __sparquet_ncol      = .
     scalar __sparquet_nread     = .
+    scalar __sparquet_readrg    = cond(`"`rg'"' == `"none"', 0, `:list sizeof rg')
     matrix __sparquet_coltypes  = .
 
     * Check plugin loaded OK
@@ -351,6 +416,9 @@ program parquet_read
     }
     * desc
     * l
+    if ( `=scalar(__sparquet_nread) < _N' ) {
+        qui keep in 1 / `=scalar(__sparquet_nread)'
+    }
 
     clean_exit
     exit 0
@@ -397,6 +465,8 @@ program parquet_write
     scalar __sparquet_rg_size   = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
     scalar __sparquet_strbuffer = 1
     scalar __sparquet_ncol      = `:list sizeof varlist'
+    scalar __sparquet_readrg    = 0
+    matrix __sparquet_rowgix    = .
 
     * Check plugin loaded OK
     * ----------------------
@@ -497,9 +567,12 @@ program clean_exit
     cap scalar drop __sparquet_into
     cap matrix drop __sparquet_coltypes
     cap matrix drop __sparquet_colix
+    cap matrix drop __sparquet_rowgix
     cap mata: mata drop __sparquet_colix
     cap mata: mata drop __sparquet_colnames
     cap mata: mata drop __sparquet_varnames
+    cap mata: mata drop __sparquet_rowgix
+    cap mata: mata drop __sparquet_filenames
 end
 
 * Expand matsize if need be

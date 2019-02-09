@@ -1,6 +1,19 @@
 Change Log
 ==========
 
+## parquet-0.5.3 (2019-02-08)
+
+### Features
+
+- Closes #17. `parquet use, rg()` allows the user to specify the row
+  groups to read.  For parquet datasets, each dataset in the folder is a
+  group.
+
+### Enhancements
+
+- If fewer observations are read than the number expected, make a note
+  of it and only keep as many observations as were read.
+
 ## parquet-0.5.2 (2019-01-30)
 
 ### Features

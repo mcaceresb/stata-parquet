@@ -37,8 +37,8 @@ ST_retcode sf_matrix_int(char const *matrix, int64_t mlen, int64_t mcol, int64_t
 
 ST_retcode sf_ll_shape(const char *fname, const int debug)
 {
-    ST_retcode rc = 0;
-    int64_t nrow, ncol;
+    ST_retcode rc = 0, any_rc = 0;
+    int64_t nrow, ncol, ngroup, _readrg, readrg, r, readrow = 0;
     SPARQUET_CHAR(vscalar, 32);
 
     try {
@@ -48,13 +48,60 @@ ST_retcode sf_ll_shape(const char *fname, const int debug)
         std::shared_ptr<parquet::FileMetaData> file_metadata =
             parquet_reader->metadata();
 
-        nrow = file_metadata->num_rows();
-        ncol = file_metadata->num_columns();
+        // Basic Info
+        // ----------
 
-        sf_printf_debug(debug, "\tShape: %ld by %ld\n", nrow, ncol);
+        ngroup = file_metadata->num_row_groups();
+        nrow   = file_metadata->num_rows();
+        ncol   = file_metadata->num_columns();
+
+        if ( ngroup > 1 ) {
+            sf_printf_debug(debug, "\tShape: %ld by %ld in %ld groups\n", nrow, ncol, ngroup);
+        }
+        else {
+            sf_printf_debug(debug, "\tShape: %ld by %ld\n", nrow, ncol);
+        }
+
+        // Row groups
+        // ----------
+
+        if ( (rc = sf_scalar_int("__sparquet_readrg", 17, &readrg)) ) any_rc = rc;
+        _readrg = readrg? readrg: 1;
+        int64_t rowgix[_readrg];
+
+        if ( (rc = sf_matrix_int("__sparquet_rowgix", 17, _readrg, rowgix)) ) any_rc = rc;
+        for (r = 0; r < _readrg; r++)
+            --rowgix[r];
+
+        if ( any_rc ) {
+            rc = any_rc;
+            goto exit;
+        }
+
+        // Check row groups make sense
+        if ( readrg ) {
+            for (r = 0; r < readrg; ++r) {
+                if ( (rowgix[r] + 1) > ngroup ) {
+                    sf_errprintf("Attempted to row group %ld but file only had %ld.\n",
+                                 rowgix[r] + 1, ngroup);
+                    rc = 17301;
+                    goto exit;
+                }
+                else {
+                    readrow += file_metadata->RowGroup(rowgix[r])->num_rows();
+                }
+            }
+            sf_printf("(note: reading %ld of %ld observations from %ld groups)\n",
+                      readrow, nrow, readrg);
+            nrow = readrow;
+        }
+
+        // Export info
+        // -----------
 
         memcpy(vscalar, "__sparquet_nrow", 15);
         if ( (rc = SF_scal_save(vscalar, (ST_double) nrow)) ) goto exit;
+
         memcpy(vscalar, "__sparquet_ncol", 15);
         if ( (rc = SF_scal_save(vscalar, (ST_double) ncol)) ) goto exit;
 

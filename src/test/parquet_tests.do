@@ -1,8 +1,43 @@
 * Hive
 * ----
 
-!printf "\nimport pandas as pd \nimport numpy as np \nimport fastparquet as fp \ndf = pd.DataFrame(np.random.randint(0,100,size=(4, 4)), columns=list('ABCD')) \ndf['tmp']= '#GiraffesAreFake' \nfp.write('test.parquet', df, row_group_offsets=1, file_scheme='hive')" | python
+!printf "\nimport pandas as pd \nimport numpy as np \nimport fastparquet as fp \ndf = pd.DataFrame(np.random.randint(0,100,size=(8, 4)), columns=list('ABCD')) \ndf['tmp']= '#GiraffesAreFake' \nfp.write('test.parquet', df, row_group_offsets=2, file_scheme='hive')\nfp.write('testrg.parquet', df, row_group_offsets=2)" | python
+cap noi parquet use using test.parquet, clear rg(1 3 2) highlevel
+cap noi parquet use using test.parquet, clear rg(1 3 2)
+cap noi parquet use using test.parquet, clear rg(5)
+cap noi parquet use using test.parquet, clear
+cap noi parquet use using test.parquet, clear rg(1 3 2)
+l
 cap noi parquet use tmp using test.parquet, clear
+l
+
+* Row groups
+* ----------
+
+cap noi parquet use using testrg.parquet, clear
+l
+cap noi parquet use using testrg.parquet, clear rg(1 3)
+l
+cap noi parquet use using testrg.parquet, clear rg(1 2) highlevel
+l
+
+cap noi parquet use using testrg.parquet, clear rg(10)
+cap noi parquet use using testrg.parquet, clear rg(10) highlevel
+cap noi parquet use using testrg.parquet, clear rg(1 2 3 1 3)
+l
+cap noi parquet use using testrg.parquet, clear rg(1 3 1 4 3) highlevel
+l
+
+cap noi parquet use using testrg.parquet, clear rg(1 3) in(2 / 3) highlevel
+l
+cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 6) highlevel
+cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 3) highlevel
+l
+
+cap noi parquet use using testrg.parquet, clear rg(1 3) in(2 / 3) lowlevel
+l
+cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 6) lowlevel
+cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 3) lowlevel
 l
 
 * README
@@ -124,10 +159,17 @@ save tmp, replace
 
 if ( `c(MP)' ) parquet use tmp.parquet, clear threads(4)
 parquet use x2 using tmp.parquet, clear
-parquet use tmp.parquet, clear in(500000) lowlevel
+
+parquet use tmp.parquet, clear in(500000) highlevel verbose
 disp _N, ix
-parquet use tmp.parquet, clear in(-10/) lowlevel
+parquet use tmp.parquet, clear in(-10/) highlevel verbose
 disp _N, ix[1], ix[_N]
+
+parquet use tmp.parquet, clear in(500000) lowlevel verbose
+disp _N, ix
+parquet use tmp.parquet, clear in(-10/) lowlevel verbose
+disp _N, ix[1], ix[_N]
+
 parquet use tmp.parquet, clear
 use tmp.dta, clear
 * import delimited using "tmp.csv", clear varn(1)
@@ -151,7 +193,7 @@ set rmsg off
 * parquet use test.parquet, clear
 *
 * !printf 'import pandas as pd\ndf = pd.read_parquet("test.parquet")' | python
-* local stataParquet com.kylebarron.stataParquet.ParquetStataReader 
+* local stataParquet com.kylebarron.stataParquet.ParquetStataReader
 * local jarParquet stataParquet-0.1.0-jar-with-dependencies.jar
 * javacall `stataParquet' read,  jar(`c(sysdir_personal)'`jarParquet`) args("test.parquet")
 *

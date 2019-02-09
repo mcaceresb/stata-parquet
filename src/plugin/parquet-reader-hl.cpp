@@ -3,12 +3,14 @@
 // matrices
 //     __sparquet_coltypes
 //     __sparquet_colix
+//     __sparquet_rowgix
 // scalars
 //     __sparquet_ncol
 //     __sparquet_rg_size
 //     __sparquet_threads
 //     __sparquet_into
 //     __sparquet_infrom
+//     __sparquet_readrg
 
 ST_retcode sf_hl_read_varlist(
     const char *fname,
@@ -19,25 +21,36 @@ ST_retcode sf_hl_read_varlist(
     ST_double z;
     ST_retcode rc = 0, any_rc = 0;
     clock_t timer = clock();
-    int64_t i, j, c, ix;
+    int64_t r, i, j, c, ig, ix, ic, ir, readrg, _readrg;
     int64_t nfields, narrfrom, narrlen, nchunks;
-    int64_t maxstrlen = 1, nthreads = 1, ncol = 1, infrom = 1, into = 1;
+    int64_t maxstrlen = 1, nthreads = 1, ncol = 1, infrom = 1, into = 1, nread = 0;
 
     // int64_t vtype;
     SPARQUET_CHAR(vmatrix, 32);
+    SPARQUET_CHAR(vscalar, 32);
 
     if ( (rc = sf_scalar_int("__sparquet_threads", 18, &nthreads)) ) any_rc = rc;
     if ( (rc = sf_scalar_int("__sparquet_ncol",    15, &ncol))     ) any_rc = rc;
     if ( (rc = sf_scalar_int("__sparquet_infrom",  17, &infrom))   ) any_rc = rc;
     if ( (rc = sf_scalar_int("__sparquet_into",    15, &into))     ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_readrg",  17, &readrg))   ) any_rc = rc;
 
     // You don't adjust into in this case because we can loop from the
     // start, so no while ... trick
     --infrom;
 
+    _readrg = readrg? readrg: 1;
     int64_t vtypes[ncol];
     int64_t _colix[ncol];
+    int64_t _rowgix[_readrg];
     std::vector<int> colix(ncol);
+    std::vector<int> rowgix(_readrg);
+
+    // Adjust row group selection to be 0-indexed
+    if ( (rc = sf_matrix_int("__sparquet_rowgix", 17, _readrg, _rowgix)) ) any_rc = rc;
+    for (j = 0; j < _readrg; j++) {
+        rowgix[j] = --_rowgix[j];
+    }
 
     // Adjust column selection to be 0-indexed
     if ( (rc = sf_matrix_int("__sparquet_colix", 16, ncol, _colix)) ) any_rc = rc;
@@ -68,12 +81,26 @@ ST_retcode sf_hl_read_varlist(
             // reader->set_num_threads((int64_t) nthreads);
             reader->set_use_threads(true);
         }
-        std::shared_ptr<arrow::Table> table;
-        PARQUET_THROW_NOT_OK(reader->ReadTable(colix, &table));
 
-        sf_running_timer (&timer, "Read data into Arrow table");
+        std::vector<std::shared_ptr<arrow::Table>> tables(_readrg, nullptr);
+        if ( readrg ) {
+            for (j = 0; j < _readrg; ++j) {
+                PARQUET_THROW_NOT_OK(reader->ReadRowGroup({rowgix[j]}, colix, &tables[j]));
+            }
+        }
+        else {
+            PARQUET_THROW_NOT_OK(reader->ReadTable(colix, &tables[0]));
+        }
 
-        ncol = table->num_columns();
+        sf_running_timer (&timer, "Read data into Arrow table"); 
+        ncol = tables[0]->num_columns();
+        for (j = 1; j < _readrg; ++j) {
+            if ( ncol != tables[j]->num_columns() ) {
+                sf_errprintf("Inconsistent columns across row groups\n");
+                rc = 17302;
+                goto exit;
+            }
+        }
 
         // Parse types
         // -----------
@@ -96,187 +123,246 @@ ST_retcode sf_hl_read_varlist(
         std::shared_ptr<arrow::StringArray>          strarray;
         std::shared_ptr<arrow::FixedSizeBinaryArray> flstrarray;
 
-        for (j = 0; j < ncol; j++) {
-            ix = 1;
-            // vtype = vtypes[j];
-            auto data = table->column(j)->data();
-            nchunks = data->num_chunks();
-            for (c = 0; c < nchunks; c++) {
+        ir = ic = ix = ig = 0;
+        for (r = 0; r < _readrg; ++r) {
+            ig = 0;
+            for (j = 0; j < ncol; j++) {
+                // vtype = vtypes[j];
+                auto data = tables[r]->column(j)->data();
+                nchunks = data->num_chunks();
+                ix = 0;
+                ic = 0;
                 id = get_physical_type(data->type()->id());
-                if ( id == Type::BOOLEAN )   {
-                    boolarray = std::static_pointer_cast<arrow::BooleanArray>(data->chunk(c));
-                    nfields = boolarray->num_fields();
-                    if ( nfields > 1 ) {
-                        sf_errprintf("Multiple fields not supported\n");
-                        rc = 17042;
-                        goto exit;
-                    }
-                    narrlen = boolarray->length();
-                    if ( narrlen > into ) narrlen = into;
-                    narrfrom = (infrom + ix - 1);
-                    for (i = narrfrom; i < narrlen; i++) {
-                        if (boolarray->IsNull(i)) {
-                            z = SV_missval;
-                        }
-                        else {
-                            z = (double) boolarray->Value(i);
-                        }
-                        if ( (rc = SF_vstore(j + 1, i + ix - infrom, z)) ) goto exit;
-                    }
-                }
-                else if ( id == Type::INT32 ) {
-                    i32array = std::static_pointer_cast<arrow::Int32Array>(data->chunk(c));
-                    nfields = i32array->num_fields();
-                    if ( nfields > 1 ) {
-                        sf_errprintf("Multiple fields not supported\n");
-                        rc = 17042;
-                        goto exit;
-                    }
-                    narrlen = i32array->length();
-                    if ( narrlen > into ) narrlen = into;
-                    narrfrom = (infrom + ix - 1);
-                    for (i = narrfrom; i < narrlen; i++) {
-                        if (i32array->IsNull(i)) {
-                            z = SV_missval;
-                        }
-                        else {
-                            z = (double) i32array->Value(i);
-                        }
-                        if ( (rc = SF_vstore(j + 1, i + ix - infrom, z)) ) goto exit;
-                    }
-                }
-                else if ( id == Type::INT64 )  {
-                    i64array = std::static_pointer_cast<arrow::Int64Array>(data->chunk(c));
-                    nfields = i64array->num_fields();
-                    if ( nfields > 1 ) {
-                        sf_errprintf("Multiple fields not supported\n");
-                        rc = 17042;
-                        goto exit;
-                    }
-                    narrlen = i64array->length();
-                    if ( narrlen > into ) narrlen = into;
-                    narrfrom = (infrom + ix - 1);
-                    for (i = narrfrom; i < narrlen; i++) {
-                        if (i64array->IsNull(i)) {
-                            z = SV_missval;
-                        }
-                        else {
-                            z = (double) i64array->Value(i);
-                        }
-                        if ( (rc = SF_vstore(j + 1, i + ix - infrom, z)) ) goto exit;
-                    }
-                }
-                else if ( id == Type::INT96 ) {
-                    sf_errprintf("96-bit integers not implemented.\n");
-                    rc = 17101;
-                    goto exit;
-                }
-                else if ( id == Type::FLOAT ) {
-                    floatarray = std::static_pointer_cast<arrow::FloatArray>(data->chunk(c));
-                    nfields = floatarray->num_fields();
-                    if ( nfields > 1 ) {
-                        sf_errprintf("Multiple fields not supported\n");
-                        rc = 17042;
-                        goto exit;
-                    }
-                    narrlen = floatarray->length();
-                    if ( narrlen > into ) narrlen = into;
-                    narrfrom = (infrom + ix - 1);
-                    for (i = narrfrom; i < narrlen; i++) {
-                        if (floatarray->IsNull(i)) {
-                            z = SV_missval;
-                        }
-                        else {
-                            z = (double) floatarray->Value(i);
-                        }
-                        if ( (rc = SF_vstore(j + 1, i + ix - infrom, z)) ) goto exit;
-                    }
-                }
-                else if ( id == Type::DOUBLE )     {
-                    doublearray = std::static_pointer_cast<arrow::DoubleArray>(data->chunk(c));
-                    nfields = doublearray->num_fields();
-                    if ( nfields > 1 ) {
-                        sf_errprintf("Multiple fields not supported\n");
-                        rc = 17042;
-                        goto exit;
-                    }
-                    narrlen = doublearray->length();
-                    if ( narrlen > into ) narrlen = into;
-                    narrfrom = (infrom + ix - 1);
-                    for (i = narrfrom; i < narrlen; i++) {
-                        if (doublearray->IsNull(i)) {
-                            z = SV_missval;
-                        }
-                        else {
-                            z = doublearray->Value(i);
-                        }
-                        if ( (rc = SF_vstore(j + 1, i + ix - infrom, z)) ) goto exit;
-                    }
-                }
-                else if ( id == Type::BYTE_ARRAY ) {
-                    strarray = std::static_pointer_cast<arrow::StringArray>(data->chunk(c));
-                    nfields = strarray->num_fields();
-                    if ( nfields > 1 ) {
-                        sf_errprintf("Multiple fields not supported\n");
-                        rc = 17042;
-                        goto exit;
-                    }
-                    narrlen = strarray->length();
-                    if ( narrlen > into ) narrlen = into;
-                    narrfrom = (infrom + ix - 1);
-                    // TODO: Check GetString won't fail w/actyally binary data
-                    for (i = narrfrom; i < narrlen; i++) {
-                        // memcpy(vstr, strarray->GetString(i), strarray->value_length(i));
-                        if ( strarray->value_length(i) > vtypes[j] ) {
-                            sf_errprintf("Buffer (%d) too small; re-run with larger buffer or -strscan(.)-\n", vtypes[j]);
-                            sf_errprintf("Chunk %d, row %d, col %d had a string of length %d.\n", c, i + ix, j, strarray->value_length(i));
-                            rc = 17103;
+                for (c = 0; c < nchunks; c++) {
+                    if ( id == Type::BOOLEAN )   {
+                        boolarray = std::static_pointer_cast<arrow::BooleanArray>(data->chunk(c));
+                        nfields = boolarray->num_fields();
+                        if ( nfields > 1 ) {
+                            sf_errprintf("Multiple fields not supported\n");
+                            rc = 17042;
                             goto exit;
                         }
-                        strarray->GetString(i).copy(vstr, vtypes[j]);
-                        if ( (rc = SF_sstore(j + 1, i + ix - infrom, vstr)) ) goto exit;
-                        memset(vstr, '\0', maxstrlen);
+                        narrlen  = boolarray->length();
+                        narrfrom = 0;
+                        if ( narrlen > (into - (ir + ic)) ) {
+                            narrlen = into - (ir + ic);
+                        }
+                        if ( infrom > (ir + ic) ) {
+                            narrfrom = infrom - (ir + ic);
+                        }
+                        for (i = narrfrom; i < narrlen; i++) {
+                            if (boolarray->IsNull(i)) {
+                                z = SV_missval;
+                            }
+                            else {
+                                z = (double) boolarray->Value(i);
+                            }
+                            if ( (rc = SF_vstore(j + 1, ++ix + nread, z)) ) goto exit;
+                        }
+                        ic += boolarray->length();
                     }
-                }
-                else if ( id == Type::FIXED_LEN_BYTE_ARRAY ) {
-                    flstrarray = std::static_pointer_cast<arrow::FixedSizeBinaryArray>(data->chunk(c));
-                    nfields = flstrarray->num_fields();
-                    if ( nfields > 1 ) {
-                        sf_errprintf("Multiple fields not supported\n");
-                        rc = 17042;
+                    else if ( id == Type::INT32 ) {
+                        i32array = std::static_pointer_cast<arrow::Int32Array>(data->chunk(c));
+                        nfields = i32array->num_fields();
+                        if ( nfields > 1 ) {
+                            sf_errprintf("Multiple fields not supported\n");
+                            rc = 17042;
+                            goto exit;
+                        }
+                        narrlen  = i32array->length();
+                        narrfrom = 0;
+                        if ( narrlen > (into - (ir + ic)) ) {
+                            narrlen = into - (ir + ic);
+                        }
+                        if ( infrom > (ir + ic) ) {
+                            narrfrom = infrom - (ir + ic);
+                        }
+                        for (i = narrfrom; i < narrlen; i++) {
+                            if (i32array->IsNull(i)) {
+                                z = SV_missval;
+                            }
+                            else {
+                                z = (double) i32array->Value(i);
+                            }
+                            if ( (rc = SF_vstore(j + 1, ++ix + nread, z)) ) goto exit;
+                        }
+                        ic += i32array->length();
+                    }
+                    else if ( id == Type::INT64 )  {
+                        i64array = std::static_pointer_cast<arrow::Int64Array>(data->chunk(c));
+                        nfields = i64array->num_fields();
+                        if ( nfields > 1 ) {
+                            sf_errprintf("Multiple fields not supported\n");
+                            rc = 17042;
+                            goto exit;
+                        }
+                        narrlen  = i64array->length();
+                        narrfrom = 0;
+                        if ( narrlen > (into - (ir + ic)) ) {
+                            narrlen = into - (ir + ic);
+                        }
+                        if ( infrom > (ir + ic) ) {
+                            narrfrom = infrom - (ir + ic);
+                        }
+                        for (i = narrfrom; i < narrlen; i++) {
+                            if (i64array->IsNull(i)) {
+                                z = SV_missval;
+                            }
+                            else {
+                                z = (double) i64array->Value(i);
+                            }
+                            if ( (rc = SF_vstore(j + 1, ++ix + nread, z)) ) goto exit;
+                        }
+                        ic += i64array->length();
+                    }
+                    else if ( id == Type::INT96 ) {
+                        sf_errprintf("96-bit integers not implemented.\n");
+                        rc = 17101;
                         goto exit;
                     }
-                    narrlen = flstrarray->length();
-                    if ( narrlen > into ) narrlen = into;
-                    narrfrom = (infrom + ix - 1);
-                    // TODO: Check this actually works?
-                    // TODO: GetString won't fail w/actyally binary data
-                    for (i = narrfrom; i < narrlen; i++) {
-                        memcpy(vstr, flstrarray->GetValue(i), flstrarray->byte_width());
-                        // memcpy(vstr, flstrarray->GetValue(i), vtype);
-                        if ( (rc = SF_sstore(j + 1, i + ix - infrom, vstr)) ) goto exit;
-                        memset(vstr, '\0', maxstrlen);
+                    else if ( id == Type::FLOAT ) {
+                        floatarray = std::static_pointer_cast<arrow::FloatArray>(data->chunk(c));
+                        nfields = floatarray->num_fields();
+                        if ( nfields > 1 ) {
+                            sf_errprintf("Multiple fields not supported\n");
+                            rc = 17042;
+                            goto exit;
+                        }
+                        narrlen  = floatarray->length();
+                        narrfrom = 0;
+                        if ( narrlen > (into - (ir + ic)) ) {
+                            narrlen = into - (ir + ic);
+                        }
+                        if ( infrom > (ir + ic) ) {
+                            narrfrom = infrom - (ir + ic);
+                        }
+                        for (i = narrfrom; i < narrlen; i++) {
+                            if (floatarray->IsNull(i)) {
+                                z = SV_missval;
+                            }
+                            else {
+                                z = (double) floatarray->Value(i);
+                            }
+                            if ( (rc = SF_vstore(j + 1, ++ix + nread, z)) ) goto exit;
+                        }
+                        ic += floatarray->length();
+                    }
+                    else if ( id == Type::DOUBLE )     {
+                        doublearray = std::static_pointer_cast<arrow::DoubleArray>(data->chunk(c));
+                        nfields = doublearray->num_fields();
+                        if ( nfields > 1 ) {
+                            sf_errprintf("Multiple fields not supported\n");
+                            rc = 17042;
+                            goto exit;
+                        }
+                        narrlen  = doublearray->length();
+                        narrfrom = 0;
+                        if ( narrlen > (into - (ir + ic)) ) {
+                            narrlen = into - (ir + ic);
+                        }
+                        if ( infrom > (ir + ic) ) {
+                            narrfrom = infrom - (ir + ic);
+                        }
+                        for (i = narrfrom; i < narrlen; i++) {
+                            if (doublearray->IsNull(i)) {
+                                z = SV_missval;
+                            }
+                            else {
+                                z = doublearray->Value(i);
+                            }
+                            if ( (rc = SF_vstore(j + 1, ++ix + nread, z)) ) goto exit;
+                        }
+                        ic += doublearray->length();
+                    }
+                    else if ( id == Type::BYTE_ARRAY ) {
+                        strarray = std::static_pointer_cast<arrow::StringArray>(data->chunk(c));
+                        nfields = strarray->num_fields();
+                        if ( nfields > 1 ) {
+                            sf_errprintf("Multiple fields not supported\n");
+                            rc = 17042;
+                            goto exit;
+                        }
+                        narrlen  = strarray->length();
+                        narrfrom = 0;
+                        if ( narrlen > (into - (ir + ic)) ) {
+                            narrlen = into - (ir + ic);
+                        }
+                        if ( infrom > (ir + ic) ) {
+                            narrfrom = infrom - (ir + ic);
+                        }
+                        // TODO: Check GetString won't fail w/actyally binary data
+                        for (i = narrfrom; i < narrlen; i++) {
+                            // memcpy(vstr, strarray->GetString(i), strarray->value_length(i));
+                            if ( strarray->value_length(i) > vtypes[j] ) {
+                                sf_errprintf("Buffer (%d) too small; re-run with larger buffer or -strscan(.)-\n",
+                                             vtypes[j]);
+                                sf_errprintf("Chunk %d, row %d, col %d had a string of length %d.\n",
+                                             c, i + ix + 1, j, strarray->value_length(i));
+                                rc = 17103;
+                                goto exit;
+                            }
+                            strarray->GetString(i).copy(vstr, vtypes[j]);
+                            if ( (rc = SF_sstore(j + 1, ++ix + nread, vstr)) ) goto exit;
+                            memset(vstr, '\0', maxstrlen);
+                        }
+                        ic += strarray->length();
+                    }
+                    else if ( id == Type::FIXED_LEN_BYTE_ARRAY ) {
+                        flstrarray = std::static_pointer_cast<arrow::FixedSizeBinaryArray>(data->chunk(c));
+                        nfields = flstrarray->num_fields();
+                        if ( nfields > 1 ) {
+                            sf_errprintf("Multiple fields not supported\n");
+                            rc = 17042;
+                            goto exit;
+                        }
+                        narrlen  = flstrarray->length();
+                        narrfrom = 0;
+                        if ( narrlen > (into - (ir + ic)) ) {
+                            narrlen = into - (ir + ic);
+                        }
+                        if ( infrom > (ir + ic) ) {
+                            narrfrom = infrom - (ir + ic);
+                        }
+                        // TODO: Check this actually works?
+                        // TODO: GetString won't fail w/actyally binary data
+                        for (i = narrfrom; i < narrlen; i++) {
+                            memcpy(vstr, flstrarray->GetValue(i), flstrarray->byte_width());
+                            // memcpy(vstr, flstrarray->GetValue(i), vtype);
+                            if ( (rc = SF_sstore(j + 1, ++ix + nread, vstr)) ) goto exit;
+                            memset(vstr, '\0', maxstrlen);
+                        }
+                        ic += flstrarray->length();
+                    }
+                    else {
+                        sf_errprintf("Unknown parquet type.\n");
+                        rc = 17100;
+                        goto exit;
                     }
                 }
-                else {
-                    sf_errprintf("Unknown parquet type.\n");
-                    rc = 17100;
-                    goto exit;
-                }
-                ix += i;
+                ig = ix > ig? ix: ig;
             }
+            nread += ig;
+            ir += tables[r]->num_rows();
         }
 
         sf_running_timer (&timer, "Copied table into Stata");
 
         sf_printf_debug(verbose, "\tFile:    %s\n",  fname);
         sf_printf_debug(verbose, "\tColumns: %ld\n", ncol);
-        sf_printf_debug(verbose, "\tRows:    %ld\n", into - infrom + 1);
+        sf_printf_debug(verbose, "\tRows:    %ld\n", into - infrom);
 
     } catch (const std::exception& e) {
         sf_errprintf("Parquet read error: %s\n", e.what());
         return(-1);
     }
+
+    if ( (into - infrom) != nread ) {
+        sf_errprintf("Warning: Expected %ld obs but found %ld\n",
+                     (into - infrom), nread);
+    }
+
+    memcpy(vscalar, "__sparquet_nread", 16);
+    if ( (rc = SF_scal_save(vscalar, (ST_double) nread)) ) goto exit;
 
 exit:
   return(rc);

@@ -265,7 +265,7 @@ ST_retcode sf_ll_read_varlist_multi(
 
     if ( (rc = sf_scalar_int("__sparquet_nrow", 15, &nrow)) ) goto exit;
     if ( nrow != nread ) {
-        sf_errprintf("Warning: Expected %ld obs but only found %ld",
+        sf_errprintf("Warning: Expected %ld obs but only found %ld\n",
                      nrow, nread);
     }
 

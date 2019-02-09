@@ -18,8 +18,8 @@ ST_retcode sf_ll_shape_multi(const char *flist, const int debug)
         std::shared_ptr<parquet::FileMetaData> file_metadata;
 
         std::string fname;
-        std::ifstream fstream;
-        fstream.open(flist);
+        std::ifstream fstream (flist);
+        // fstream.open(flist);
 
         if ( fstream.is_open() ) {
             while ( std::getline(fstream, fname) ) {
@@ -51,6 +51,7 @@ ST_retcode sf_ll_shape_multi(const char *flist, const int debug)
 
         memcpy(vscalar, "__sparquet_nrow", 15);
         if ( (rc = SF_scal_save(vscalar, (ST_double) nrow)) ) goto exit;
+
         memcpy(vscalar, "__sparquet_ncol", 15);
         if ( (rc = SF_scal_save(vscalar, (ST_double) ncol)) ) goto exit;
 
