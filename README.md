@@ -163,8 +163,8 @@ TODO
 
 Some features that ought to be implemented:
 
-- [ ] `parquet desc`
 - [ ] Option `skip` for columns that are in non-readable formats?
+- [X] `parquet desc`
 - [X] `parquet use` in range for low-level reader.
 - [X] `parquet use` in range for high-level reader (though not as efficient).
 - [X] Read regular missing values.

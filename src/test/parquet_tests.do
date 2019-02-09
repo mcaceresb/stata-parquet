@@ -199,3 +199,24 @@ set rmsg off
 *
 * !rm -f test.dta
 * !rm -f test.parquet
+
+* Describe
+* --------
+
+parquet desc test.parquet
+assert r(num_row_groups) == 4
+parquet desc test.parquet, rg(2 4)
+assert r(num_row_groups) == 2
+
+parquet desc testrg.parquet
+assert r(num_row_groups) == 4
+parquet desc testrg.parquet, rg(2 4)
+assert r(num_row_groups) == 2
+
+parquet desc using auto.parquet
+assert r(num_row_groups) == 1
+parquet desc auto.parquet, in(10/ 20)
+parquet desc price gear_ratio make using auto.parquet, in(10/ 20)
+
+parquet desc using test-stata.parquet
+parquet desc using test-stata2.parquet

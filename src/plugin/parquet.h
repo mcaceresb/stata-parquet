@@ -44,6 +44,12 @@ void sf_running_timer (clock_t *timer, const char *msg)
     *timer = clock();
 }
 
+std::ifstream::pos_type filesize(const char* filename)
+{
+    std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+    return in.tellg(); 
+}
+
 #define SPARQUET_CHAR(cvar, len)    \
     char *cvar = new char[len]; \
     memset (cvar, '\0', sizeof(char) * len)

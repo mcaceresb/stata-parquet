@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+## parquet-0.5.4 (2019-02-09)
+
+### Features
+
+- `parquet desc` allows the user to glean the contents of a parquet file.
+
 ## parquet-0.5.3 (2019-02-08)
 
 ### Features
