@@ -11,6 +11,7 @@
 //     __sparquet_nread
 //     __sparquet_readrg
 //     __sparquet_progress
+//     __sparquet_check
 
 ST_retcode sf_ll_read_varlist(
     const char *fname,

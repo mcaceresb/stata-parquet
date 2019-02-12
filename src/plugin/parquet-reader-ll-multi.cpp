@@ -7,6 +7,8 @@
 //     __sparquet_ncol
 //     __sparquet_into
 //     __sparquet_infrom
+//     __sparquet_progress
+//     __sparquet_check
 
 ST_retcode sf_ll_read_varlist_multi(
     const char *flist,

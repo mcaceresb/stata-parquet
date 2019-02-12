@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+## parquet-0.5.6 (2019-02-12)
+
+### Enhancements
+
+- Much faster read times with a relatively large number of variables.
+  Previous versions allocated the number of observations and then the
+  columns in Stata. Doing the reverse is orders of magnitudes faster.
+
 ## parquet-0.5.5 (2019-02-12)
 
 ### Features

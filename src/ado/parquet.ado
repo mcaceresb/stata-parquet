@@ -1,4 +1,4 @@
-*! version 0.5.5 12Feb2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.5.6 12Feb2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -413,9 +413,12 @@ program parquet_read
     * Read parquet file!
     * ------------------
 
+    * NOTE(mauricio): Allocating variables and _then_ observations is _way_ faster
+
     clear
+    qui set obs 1
+    mata: (void) st_addvar(tokens(st_local("ctypes")), tokens(st_local("cnames")))
     qui set obs `=`into'-`infrom'+1'
-    mata: (void) st_addvar(tokens("`ctypes'"), tokens("`cnames'"))
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
         mata: st_local("vlabel", __sparquet_colnames[`j'])
         mata: st_local("vname", __sparquet_varnames[`j'])
