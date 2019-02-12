@@ -56,25 +56,26 @@ end
 
 capture program drop parquet_read
 program parquet_read
-    syntax [namelist]           /// varlist to read; must be 'namelist' because the
-                                /// variables do not exist in memory.  The names must be
-                                /// the Stata equivalent of the parquet name. E.g. 'foo
-                                /// bar' must be foo_bar
-                                ///
-           using/,              /// parquet file to read
-    [                           ///
-           clear                /// clear the data in memory
-           verbose              /// verbose
-           progress(real 30)    /// progress every x seconds
-           rg(numlist)          /// read row groups
-           ROWGroups(numlist)   /// read row groups
-           in(str)              /// read in range
-           highlevel            /// use the high-level reader
-           lowlevel             /// use the low-level reader
-           threads(int 1)       /// try multi-threading; high-level only
-           strbuffer(int 65)    /// fall back to string buffer if length not parsed
-           nostrscan            /// do not scan string lengths (use strbuffer)
-           STRSCANner(real -1)  /// scan string lengths (ever obs)
+    syntax [namelist]            /// varlist to read; must be 'namelist' because the
+                                 /// variables do not exist in memory.  The names must be
+                                 /// the Stata equivalent of the parquet name. E.g. 'foo
+                                 /// bar' must be foo_bar
+                                 ///
+           using/,               /// parquet file to read
+    [                            ///
+           clear                 /// clear the data in memory
+           verbose               /// verbose
+           progress(real 30)     /// progress every x seconds
+           _check(int 10000)     /// check timer every _check obs
+           rg(numlist)           /// read row groups
+           ROWGroups(numlist)    /// read row groups
+           in(str)               /// read in range
+           highlevel             /// use the high-level reader
+           lowlevel              /// use the low-level reader
+           threads(int 1)        /// try multi-threading; high-level only
+           strbuffer(int 65)     /// fall back to string buffer if length not parsed
+           nostrscan             /// do not scan string lengths (use strbuffer)
+           STRSCANner(real -1)   /// scan string lengths (ever obs)
     ]
 
     if ( `progress' <= 0 | `progress' >= . ) {
@@ -218,6 +219,7 @@ program parquet_read
     scalar __sparquet_ncol      = .
     scalar __sparquet_nread     = .
     scalar __sparquet_progress  = `progress'
+    scalar __sparquet_check     = `_check'
     scalar __sparquet_readrg    = cond(`"`rg'"' == `"none"', 0, `:list sizeof rg')
     matrix __sparquet_coltypes  = .
     matrix __sparquet_rawtypes  = .
@@ -461,6 +463,7 @@ program parquet_write
            [in],             /// export in range
     [                        ///
            progress(real 30) /// progress every x seconds
+           _check(int 10000) /// check timer every _check obs
            replace           /// replace target file, if it exists
            verbose           /// verbose
            rgsize(real 0)    /// row-group size (should be large; default is N by nvars)
@@ -499,6 +502,7 @@ program parquet_write
     scalar __sparquet_ncol      = `:list sizeof varlist'
     scalar __sparquet_readrg    = 0
     scalar __sparquet_progress  = `progress'
+    scalar __sparquet_check     = `_check'
     scalar __sparquet_nbytes    = .
     scalar __sparquet_ngroup    = .
     matrix __sparquet_rowgix    = .
@@ -1074,6 +1078,8 @@ program clean_exit
     cap scalar drop __sparquet_threads
     cap scalar drop __sparquet_infrom
     cap scalar drop __sparquet_into
+    cap scalar drop __sparquet_progress
+    cap scalar drop __sparquet_check
 
     cap matrix drop __sparquet_coltypes
     cap matrix drop __sparquet_rawtypes

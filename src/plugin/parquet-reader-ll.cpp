@@ -82,6 +82,7 @@ ST_retcode sf_ll_read_varlist(
         if ( (rc = sf_scalar_int("__sparquet_into",     15, &into))     ) any_rc = rc;
         if ( (rc = sf_scalar_int("__sparquet_readrg",   17, &readrg))   ) any_rc = rc;
         if ( (rc = sf_scalar_dbl("__sparquet_progress", 19, &progress)) ) any_rc = rc;
+        if ( (rc = sf_scalar_int("__sparquet_check",    16, &tevery))   ) any_rc = rc;
 
         _readrg = readrg? readrg: 1;
         maxstrlen = 1;
@@ -119,7 +120,7 @@ ST_retcode sf_ll_read_varlist(
         tobs   = into - infrom + 1;
         ttot   = ncol * tobs;
         tread  = 0;
-        tevery = 100000;
+        // tevery = 100000;
 
         // Check row groups make sense
         if ( readrg ) {

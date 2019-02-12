@@ -157,7 +157,7 @@ parquet save tmp.parquet, replace
 save tmp, replace
 * export delimited using "tmp.csv", replace
 
-if ( `c(MP)' ) parquet use tmp.parquet, clear threads(4)
+if ( `c(MP)' ) parquet use tmp.parquet, clear threads(4) highlevel
 parquet use x2 using tmp.parquet, clear
 
 parquet use tmp.parquet, clear in(500000) highlevel verbose

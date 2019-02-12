@@ -38,6 +38,7 @@ ST_retcode sf_hl_read_varlist(
     if ( (rc = sf_scalar_int("__sparquet_readrg",   17, &readrg))   ) any_rc = rc;
     if ( (rc = sf_scalar_int("__sparquet_ngroup",   17, &ngroup))   ) any_rc = rc;
     if ( (rc = sf_scalar_dbl("__sparquet_progress", 19, &progress)) ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_check",    16, &tevery))   ) any_rc = rc;
 
     // You don't adjust into in this case because we can loop from the
     // start, so no while ... trick
@@ -46,7 +47,7 @@ ST_retcode sf_hl_read_varlist(
     tobs   = into - infrom + 1;
     ttot   = ncol * tobs;
     tread  = 0;
-    tevery = 100000;
+    // tevery = 100000;
 
     _readrg = readrg? readrg: 1;
     int64_t vtypes[ncol];

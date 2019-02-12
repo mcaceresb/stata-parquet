@@ -66,12 +66,13 @@ ST_retcode sf_ll_read_varlist_multi(
         if ( (rc = sf_scalar_int("__sparquet_into",     15, &into))     ) any_rc = rc;
         if ( (rc = sf_scalar_int("__sparquet_ngroup",   17, &ngroup))   ) any_rc = rc;
         if ( (rc = sf_scalar_dbl("__sparquet_progress", 19, &progress)) ) any_rc = rc;
+        if ( (rc = sf_scalar_int("__sparquet_check",    16, &tevery))   ) any_rc = rc;
         --into; --infrom;
 
         tobs   = into - infrom + 1;
         ttot   = ncol * tobs;
         tread  = 0;
-        tevery = 100000;
+        // tevery = 100000;
 
         maxstrlen = 1;
         int64_t vtypes[ncol];
