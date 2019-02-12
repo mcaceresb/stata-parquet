@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+## parquet-0.5.5 (2019-02-12)
+
+### Features
+
+- `progress(x)` option displays progress every `x` seconds.
+
 ## parquet-0.5.4 (2019-02-09)
 
 ### Features

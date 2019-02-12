@@ -2,7 +2,7 @@ name: stata-parquet
 channels:
     - conda-forge
 dependencies:
-    - arrow-cpp
-    - parquet-cpp
-    - boost
-    - gcc
+    - arrow-cpp==0.11.1
+    - boost==1.68.0
+    - gcc==4.8.5
+    - parquet-cpp==1.5.1

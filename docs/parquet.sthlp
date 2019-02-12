@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.5.4 09Feb2019}{...}
+{* *! version 0.5.5 12Feb2019}{...}
 {viewerdialog parquet "dialog parquet"}{...}
 {vieweralsosee "[R] parquet" "mansection R parquet"}{...}
 {viewerjumpto "Syntax" "parquet##syntax"}{...}
@@ -70,6 +70,8 @@ Quick glean the contents of a parquet file or dataset:
 {synopt :{opt in(from/to)}} Import observations in range.
 {p_end}
 {synopt :{opth rg(numlist)}} Row groups to read. {opt in()} is defined relative to the subset of row groups to be read.
+{p_end}
+{synopt :{opth progress(real)}} Display progress every x seconds.
 {p_end}
 {synopt :{opt nostrscan}} Do not pre-scan data for string width; falls back to {opt strbuffer}.
 {p_end}

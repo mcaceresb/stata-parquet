@@ -1,4 +1,4 @@
-*! version 0.5.4 09Feb2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.5.5 12Feb2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -65,6 +65,7 @@ program parquet_read
     [                           ///
            clear                /// clear the data in memory
            verbose              /// verbose
+           progress(real 30)    /// progress every x seconds
            rg(numlist)          /// read row groups
            ROWGroups(numlist)   /// read row groups
            in(str)              /// read in range
@@ -75,6 +76,11 @@ program parquet_read
            nostrscan            /// do not scan string lengths (use strbuffer)
            STRSCANner(real -1)  /// scan string lengths (ever obs)
     ]
+
+    if ( `progress' <= 0 | `progress' >= . ) {
+        disp as err "invalid number of seconds in progress()"
+        exit 198
+    }
 
     qui desc, short
     if ( `r(changed)' & `"`clear'"' == "" ) {
@@ -211,6 +217,7 @@ program parquet_read
     scalar __sparquet_nrow      = .
     scalar __sparquet_ncol      = .
     scalar __sparquet_nread     = .
+    scalar __sparquet_progress  = `progress'
     scalar __sparquet_readrg    = cond(`"`rg'"' == `"none"', 0, `:list sizeof rg')
     matrix __sparquet_coltypes  = .
     matrix __sparquet_rawtypes  = .
@@ -448,21 +455,27 @@ end
 
 capture program drop parquet_write
 program parquet_write
-    syntax [varlist]      /// varlist to export
-           using/         /// target dataset file
-           [if]           /// export if condition
-           [in],          /// export in range
-    [                     ///
-           replace        /// replace target file, if it exists
-           verbose        /// verbose
-           rgsize(real 0) /// row-group size (should be large; default is N by nvars)
-           lowlevel       /// (debugging only) use low-level writer
-           fixedlen       /// (debugging only) export strings as fixed length
+    syntax [varlist]         /// varlist to export
+           using/            /// target dataset file
+           [if]              /// export if condition
+           [in],             /// export in range
+    [                        ///
+           progress(real 30) /// progress every x seconds
+           replace           /// replace target file, if it exists
+           verbose           /// verbose
+           rgsize(real 0)    /// row-group size (should be large; default is N by nvars)
+           lowlevel          /// (debugging only) use low-level writer
+           fixedlen          /// (debugging only) export strings as fixed length
     ]
 
     if ( "`lowlevel'" != "" ) {
         disp as err "{bf:Warning:} Low-level parser should only be used for debugging."
         disp as err "{bf:Warning:} Low-level parser does not adequately write missing values."
+    }
+
+    if ( `progress' <= 0 | `progress' >= . ) {
+        disp as err "invalid number of seconds in progress()"
+        exit 198
     }
 
     * Parse plugin options
@@ -485,6 +498,7 @@ program parquet_write
     scalar __sparquet_strbuffer = 1
     scalar __sparquet_ncol      = `:list sizeof varlist'
     scalar __sparquet_readrg    = 0
+    scalar __sparquet_progress  = `progress'
     scalar __sparquet_nbytes    = .
     scalar __sparquet_ngroup    = .
     matrix __sparquet_rowgix    = .

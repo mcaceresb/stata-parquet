@@ -47,7 +47,31 @@ void sf_running_timer (clock_t *timer, const char *msg)
 std::ifstream::pos_type filesize(const char* filename)
 {
     std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
-    return in.tellg(); 
+    return in.tellg();
+}
+
+void sf_running_progress_read (
+    clock_t *timer,
+    clock_t *stimer,
+    ST_double progress,
+    int64_t r,
+    int64_t nrow_groups,
+    int64_t j,
+    int64_t ncol,
+    int64_t i,
+    int64_t nobs,
+    ST_double pct)
+{
+    ST_double diff  = (ST_double) (clock() - *timer) / CLOCKS_PER_SEC;
+    ST_double sdiff = (ST_double) (clock() - *stimer) / CLOCKS_PER_SEC;
+
+    if ( sdiff < progress )
+        return;
+
+    *stimer = clock();
+    sf_printf("\tReading: %.1f%%, %.1fs (rg %ld / %ld > col %ld / %ld > obs %ld / %ld)\n",
+              pct, diff, r, nrow_groups, j, ncol, i, nobs);
+
 }
 
 #define SPARQUET_CHAR(cvar, len)    \

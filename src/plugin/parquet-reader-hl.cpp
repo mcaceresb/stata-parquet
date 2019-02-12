@@ -11,6 +11,7 @@
 //     __sparquet_into
 //     __sparquet_infrom
 //     __sparquet_readrg
+//     __sparquet_progress
 
 ST_retcode sf_hl_read_varlist(
     const char *fname,
@@ -18,26 +19,34 @@ ST_retcode sf_hl_read_varlist(
     const int debug,
     const uint64_t strbuffer)
 {
-    ST_double z;
+    ST_double z, progress;
     ST_retcode rc = 0, any_rc = 0;
     clock_t timer = clock();
-    int64_t r, i, j, c, ig, ix, ic, ir, readrg, _readrg;
-    int64_t nfields, narrfrom, narrlen, nchunks;
+    clock_t stimer = clock();
+    int64_t r, i, j, c, ig, ix, ic, ir, readrg, _readrg, ngroup;
+    int64_t nfields, narrfrom, narrlen, nchunks, tobs, ttot, tevery, tread;
     int64_t maxstrlen = 1, nthreads = 1, ncol = 1, infrom = 1, into = 1, nread = 0;
 
     // int64_t vtype;
     SPARQUET_CHAR(vmatrix, 32);
     SPARQUET_CHAR(vscalar, 32);
 
-    if ( (rc = sf_scalar_int("__sparquet_threads", 18, &nthreads)) ) any_rc = rc;
-    if ( (rc = sf_scalar_int("__sparquet_ncol",    15, &ncol))     ) any_rc = rc;
-    if ( (rc = sf_scalar_int("__sparquet_infrom",  17, &infrom))   ) any_rc = rc;
-    if ( (rc = sf_scalar_int("__sparquet_into",    15, &into))     ) any_rc = rc;
-    if ( (rc = sf_scalar_int("__sparquet_readrg",  17, &readrg))   ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_threads",  18, &nthreads)) ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_ncol",     15, &ncol))     ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_infrom",   17, &infrom))   ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_into",     15, &into))     ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_readrg",   17, &readrg))   ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_ngroup",   17, &ngroup))   ) any_rc = rc;
+    if ( (rc = sf_scalar_dbl("__sparquet_progress", 19, &progress)) ) any_rc = rc;
 
     // You don't adjust into in this case because we can loop from the
     // start, so no while ... trick
     --infrom;
+
+    tobs   = into - infrom + 1;
+    ttot   = ncol * tobs;
+    tread  = 0;
+    tevery = 100000;
 
     _readrg = readrg? readrg: 1;
     int64_t vtypes[ncol];
@@ -151,6 +160,18 @@ ST_retcode sf_hl_read_varlist(
                             narrfrom = infrom - (ir + ic);
                         }
                         for (i = narrfrom; i < narrlen; i++) {
+                            if ( (ix + nread) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, ngroup,
+                                    j + 1, ncol,
+                                    ix + nread, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             if (boolarray->IsNull(i)) {
                                 z = SV_missval;
                             }
@@ -178,6 +199,18 @@ ST_retcode sf_hl_read_varlist(
                             narrfrom = infrom - (ir + ic);
                         }
                         for (i = narrfrom; i < narrlen; i++) {
+                            if ( (ix + nread) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, ngroup,
+                                    j + 1, ncol,
+                                    ix + nread, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             if (i32array->IsNull(i)) {
                                 z = SV_missval;
                             }
@@ -205,6 +238,18 @@ ST_retcode sf_hl_read_varlist(
                             narrfrom = infrom - (ir + ic);
                         }
                         for (i = narrfrom; i < narrlen; i++) {
+                            if ( (ix + nread) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, ngroup,
+                                    j + 1, ncol,
+                                    ix + nread, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             if (i64array->IsNull(i)) {
                                 z = SV_missval;
                             }
@@ -237,6 +282,18 @@ ST_retcode sf_hl_read_varlist(
                             narrfrom = infrom - (ir + ic);
                         }
                         for (i = narrfrom; i < narrlen; i++) {
+                            if ( (ix + nread) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, ngroup,
+                                    j + 1, ncol,
+                                    ix + nread, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             if (floatarray->IsNull(i)) {
                                 z = SV_missval;
                             }
@@ -264,6 +321,18 @@ ST_retcode sf_hl_read_varlist(
                             narrfrom = infrom - (ir + ic);
                         }
                         for (i = narrfrom; i < narrlen; i++) {
+                            if ( (ix + nread) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, ngroup,
+                                    j + 1, ncol,
+                                    ix + nread, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             if (doublearray->IsNull(i)) {
                                 z = SV_missval;
                             }
@@ -292,6 +361,18 @@ ST_retcode sf_hl_read_varlist(
                         }
                         // TODO: Check GetString won't fail w/actyally binary data
                         for (i = narrfrom; i < narrlen; i++) {
+                            if ( (ix + nread) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, ngroup,
+                                    j + 1, ncol,
+                                    ix + nread, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             // memcpy(vstr, strarray->GetString(i), strarray->value_length(i));
                             if ( strarray->value_length(i) > vtypes[j] ) {
                                 sf_errprintf("Buffer (%d) too small; re-run with larger buffer or -strscan(.)-\n",
@@ -326,6 +407,18 @@ ST_retcode sf_hl_read_varlist(
                         // TODO: Check this actually works?
                         // TODO: GetString won't fail w/actyally binary data
                         for (i = narrfrom; i < narrlen; i++) {
+                            if ( (ix + nread) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, ngroup,
+                                    j + 1, ncol,
+                                    ix + nread, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             memcpy(vstr, flstrarray->GetValue(i), flstrarray->byte_width());
                             // memcpy(vstr, flstrarray->GetValue(i), vtype);
                             if ( (rc = SF_sstore(j + 1, ++ix + nread, vstr)) ) goto exit;

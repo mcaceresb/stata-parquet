@@ -1,3 +1,12 @@
+ST_retcode sf_scalar_dbl(char const *scalar, int64_t vlen, ST_double *z)
+{
+    ST_retcode rc = 0;
+    SPARQUET_CHAR(vscalar, 32);
+    memcpy(vscalar, scalar, vlen);
+    if ( (rc = SF_scal_use(vscalar, z)) ) return (rc);
+    return (rc);
+}
+
 ST_retcode sf_scalar_int(char const *scalar, int64_t vlen, int64_t *s)
 {
     ST_retcode rc = 0;
