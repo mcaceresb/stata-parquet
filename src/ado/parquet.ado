@@ -905,6 +905,7 @@ program parquet_desc, rclass
 end
 
 cap mata: mata drop __sparquet_describe()
+cap mata: mata drop __sparquet_human()
 mata:
 void function __sparquet_describe(
         real colvector colix,
@@ -1038,23 +1039,37 @@ void function __sparquet_describe(
     printf("%s\n", strsep)
 
     printf("Size on disk: %s\n", /*
-        */ strtrim(sprintf("%31.0fc", st_numscalar("__sparquet_nbytes"))))
+        */ __sparquet_human(st_numscalar("__sparquet_nbytes")))
 
     if ( anystr ) {
         if ( st_numscalar("__sparquet_strscan") < st_numscalar("__sparquet_nrow") ) {
             printf("Size in memory (when read; approximate): %s\n", /*
-                */ strtrim(sprintf("%31.0fc", /*
-                */ st_numscalar("__sparquet_nrow") * bytes)))
+                */ __sparquet_human(st_numscalar("__sparquet_nrow") * bytes))
             printf("(note: String sizes are approximate; run with strscan(.) for exact sizes)\n")
         }
         else {
             printf("Size in memory (when read): %s\n", /*
-                */ strtrim(sprintf("%31.0fc", /*
-                */ st_numscalar("__sparquet_nrow") * bytes)))
+                */ __sparquet_human(st_numscalar("__sparquet_nrow") * bytes))
         }
     }
 
     st_local("bytes", strofreal(bytes))
+}
+
+string scalar function __sparquet_human(real scalar bytes)
+{
+    if ( bytes < 1024^1 ) {
+        return(strtrim(sprintf("%31.0fc bytes", bytes / 1024^0)))
+    }
+    else if ( bytes < 1024^2 ) {
+        return(strtrim(sprintf("%31.1fcKiB", bytes / 1024^1)))
+    }
+    else if ( bytes < 1024^3 ) {
+        return(strtrim(sprintf("%31.1fcMiB", bytes / 1024^2)))
+    }
+    else {
+        return(strtrim(sprintf("%31.1fcGiB", bytes / 1024^3)))
+    }
 }
 end
 
