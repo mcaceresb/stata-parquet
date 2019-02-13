@@ -73,7 +73,7 @@ If you don't want to use Conda, you can also build Apache Arrow and Apache Parqu
     ```bash
     git clone https://github.com/mcaceresb/stata-parquet
     cd stata-parquet
-    make all
+    make all UFLAGS=-std=c++11
     stata -b "net install parquet, from(${PWD}/build) replace"
     ```
 
