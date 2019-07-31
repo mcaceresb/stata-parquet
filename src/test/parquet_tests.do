@@ -1,44 +1,48 @@
 * Hive
 * ----
 
-!printf "\nimport pandas as pd \nimport numpy as np \nimport fastparquet as fp \ndf = pd.DataFrame(np.random.randint(0,100,size=(8, 4)), columns=list('ABCD')) \ndf['tmp']= '#GiraffesAreFake' \nfp.write('test.parquet', df, row_group_offsets=2, file_scheme='hive')\nfp.write('testrg.parquet', df, row_group_offsets=2)" | python
-cap noi parquet use using test.parquet, clear rg(1 3 2) highlevel
-cap noi parquet use using test.parquet, clear rg(1 3 2)
-cap noi parquet use using test.parquet, clear rg(5)
-cap noi parquet use using test.parquet, clear
-cap noi parquet use using test.parquet, clear rg(1 3 2)
-l
-cap noi parquet use tmp using test.parquet, clear
-l
+if ( `:list posof `"python"' in 0' == 0 ) {
+    !printf "\nimport pandas as pd \nimport numpy as np \nimport fastparquet as fp \ndf = pd.DataFrame(np.random.randint(0,100,size=(8, 4)), columns=list('ABCD')) \ndf['tmp']= '#GiraffesAreFake' \nfp.write('test.parquet', df, row_group_offsets=2, file_scheme='hive')\nfp.write('testrg.parquet', df, row_group_offsets=2)" | python
+    cap noi parquet use using test.parquet, clear rg(1 3 2) highlevel
+    cap noi parquet use using test.parquet, clear rg(1 3 2)
+    cap noi parquet use using test.parquet, clear rg(5)
+    cap noi parquet use using test.parquet, clear
+    cap noi parquet use using test.parquet, clear rg(1 3 2)
+    l
+    cap noi parquet use tmp using test.parquet, clear
+    l
+}
 
 * Row groups
 * ----------
 
-cap noi parquet use using testrg.parquet, clear
-l
-cap noi parquet use using testrg.parquet, clear rg(1 3)
-l
-cap noi parquet use using testrg.parquet, clear rg(1 2) highlevel
-l
+if ( `:list posof `"python"' in 0' == 0 ) {
+    cap noi parquet use using testrg.parquet, clear
+    l
+    cap noi parquet use using testrg.parquet, clear rg(1 3)
+    l
+    cap noi parquet use using testrg.parquet, clear rg(1 2) highlevel
+    l
 
-cap noi parquet use using testrg.parquet, clear rg(10)
-cap noi parquet use using testrg.parquet, clear rg(10) highlevel
-cap noi parquet use using testrg.parquet, clear rg(1 2 3 1 3)
-l
-cap noi parquet use using testrg.parquet, clear rg(1 3 1 4 3) highlevel
-l
+    cap noi parquet use using testrg.parquet, clear rg(10)
+    cap noi parquet use using testrg.parquet, clear rg(10) highlevel
+    cap noi parquet use using testrg.parquet, clear rg(1 2 3 1 3)
+    l
+    cap noi parquet use using testrg.parquet, clear rg(1 3 1 4 3) highlevel
+    l
 
-cap noi parquet use using testrg.parquet, clear rg(1 3) in(2 / 3) highlevel
-l
-cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 6) highlevel
-cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 3) highlevel
-l
+    cap noi parquet use using testrg.parquet, clear rg(1 3) in(2 / 3) highlevel
+    l
+    cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 6) highlevel
+    cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 3) highlevel
+    l
 
-cap noi parquet use using testrg.parquet, clear rg(1 3) in(2 / 3) lowlevel
-l
-cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 6) lowlevel
-cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 3) lowlevel
-l
+    cap noi parquet use using testrg.parquet, clear rg(1 3) in(2 / 3) lowlevel
+    l
+    cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 6) lowlevel
+    cap noi parquet use using testrg.parquet, clear rg(2 4) in(1 / 3) lowlevel
+    l
+}
 
 * README
 * ------
