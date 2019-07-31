@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+## parquet-0.6.0 (2019-07-31)
+
+### Bug fixes
+
+- Fixes install script and instructions to be compatible with latest
+  conda version and corresponding packages.
+
 ## parquet-0.5.6 (2019-02-12)
 
 ### Enhancements

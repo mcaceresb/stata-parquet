@@ -78,9 +78,26 @@ test:
 # src/parquet.pkg
 # src/plugin/parquet.cpp
 # src/stata.toc
+
+# NOTE: Debug conda installation
+#
+# conda install -n stata-parquet pandas numpy fastparquet
+#
+# _GCC=g++
+# _PREFIX=${HOME}/Desktop/stata-parquet/lib
+# _GCC=${HOME}/Desktop/GCC-9.2/g++
 #
 # _PREFIX=${HOME}/bulk/programs/miniconda3/envs/stata-parquet
-# make GCC=${_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=${_PREFIX}/include LIBS=${_PREFIX}/lib all replace test
+# _GCC=${PREFIX}/bin/x86_64-conda_cos6-linux-gnu-g++
+#
+# make GCC=${_GCC} UFLAGS=-std=c++11 INCLUDE=${_PREFIX}/include LIBS=${_PREFIX}/lib all replace test
+# make GCC=${_GCC} UFLAGS=-std=c++11 INCLUDE=${_PREFIX}/include LIBS=${_PREFIX}/lib all
+#
+# ${HOME}/.local/stata/stata -b "net install parquet, from(${PWD}/build) replace"
+# LD_LIBRARY_PATH=${_PREFIX}/lib:$LD_LIBRARY_PATH ${HOME}/.local/stata/stata
+#
+# ${HOME}/.local/stata15/stata-mp -b "net install parquet, from(${PWD}/build) replace"
+# LD_LIBRARY_PATH=${_PREFIX}/lib:$LD_LIBRARY_PATH ${HOME}/.local/stata15/stata-mp
 
 .PHONY: clean
 clean:
