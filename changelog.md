@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+## parquet-0.6.1 (2019-07-31)
+
+### Bug fixes
+
+- Fixes tests so they run even if python hive creation fails.
+- Updated install instructions in README.
+
 ## parquet-0.6.0 (2019-07-31)
 
 ### Bug fixes

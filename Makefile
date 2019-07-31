@@ -78,6 +78,7 @@ test:
 # src/parquet.pkg
 # src/plugin/parquet.cpp
 # src/stata.toc
+# changelog.md
 
 # NOTE: Debug conda installation
 #
