@@ -20,12 +20,13 @@ You need to first install:
 
 ### Installation with Conda
 
-The only currently tested way to install this software is via `conda` (see [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) for instructions on installing Miniconda or Anaconda):
+The only currently tested way to install this software is via `conda` (see [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) for installation instructions; most recent plugin installation and tests were conducted using `conda 4.7.10` from Miniconda):
+
 ```bash
 git clone https://github.com/mcaceresb/stata-parquet
 cd stata-parquet
 conda env create -f environment.yml
-source activate stata-parquet
+conda activate stata-parquet
 
 make GCC=${CONDA_PREFIX}/bin/x86_64-conda_cos6-linux-gnu-g++ UFLAGS=-std=c++11 INCLUDE=${CONDA_PREFIX}/include LIBS=${CONDA_PREFIX}/lib all
 stata -b "net install parquet, from(${PWD}/build) replace"
