@@ -205,7 +205,7 @@ ST_retcode sf_hl_write_varlist(
         }
 
     } catch (const std::exception& e) {
-        sf_errprintf("Parquet read error: %s\n", e.what());
+        sf_errprintf("Parquet write error: %s\n", e.what());
         return(-1);
     }
 
@@ -432,7 +432,7 @@ ST_retcode sf_hl_write_varlist_if(
         }
 
     } catch (const std::exception& e) {
-        sf_errprintf("Parquet read error: %s\n", e.what());
+        sf_errprintf("Parquet write error: %s\n", e.what());
         return(-1);
     }
 

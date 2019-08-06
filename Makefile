@@ -82,11 +82,9 @@ test:
 
 # NOTE: Debug conda installation
 #
-# conda install -n stata-parquet pandas numpy fastparquet
-#
 # _GCC=g++
-# _PREFIX=${HOME}/Desktop/stata-parquet/lib
 # _GCC=${HOME}/Desktop/GCC-9.2/g++
+# _PREFIX=${HOME}/Desktop/stata-parquet/lib
 #
 # _PREFIX=${HOME}/bulk/programs/miniconda3/envs/stata-parquet
 # _GCC=${PREFIX}/bin/x86_64-conda_cos6-linux-gnu-g++
@@ -99,6 +97,9 @@ test:
 #
 # ${HOME}/.local/stata15/stata-mp -b "net install parquet, from(${PWD}/build) replace"
 # LD_LIBRARY_PATH=${_PREFIX}/lib:$LD_LIBRARY_PATH ${HOME}/.local/stata15/stata-mp
+#
+# NOTE: Be sure to type `which conda` and `which parquet` to check you
+# are using the latest versions.
 
 .PHONY: clean
 clean:

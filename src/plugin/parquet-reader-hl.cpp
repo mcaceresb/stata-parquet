@@ -90,8 +90,8 @@ ST_retcode sf_hl_read_varlist(
             // TODO: set_num_threads is deprecated and I should only use
             // set_use_threads? If so, change option to be binary.
 
-            reader->set_num_threads((int64_t) nthreads);
-            // reader->set_use_threads(true);
+            // reader->set_num_threads((int64_t) nthreads);
+            reader->set_use_threads(true);
         }
 
         std::vector<std::shared_ptr<arrow::Table>> tables(_readrg, nullptr);

@@ -1,4 +1,6 @@
 name: stata-parquet
+channels:
+    - conda-forge
 dependencies:
     - arrow-cpp
     - boost

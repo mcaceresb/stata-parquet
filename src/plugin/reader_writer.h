@@ -31,7 +31,8 @@
 #include <parquet/api/reader.h>
 #include <parquet/api/writer.h>
 
-using parquet::LogicalType;
+// using parquet::LogicalType;
+using parquet::ConvertedType;
 using parquet::Repetition;
 using parquet::Type;
 using parquet::schema::GroupNode;

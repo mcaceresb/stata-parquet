@@ -1,7 +1,7 @@
 * Hive
 * ----
 
-if ( `:list posof `"python"' in 0' == 0 ) {
+if ( `:list posof `"python"' in 0' > 0 ) {
     !printf "\nimport pandas as pd \nimport numpy as np \nimport fastparquet as fp \ndf = pd.DataFrame(np.random.randint(0,100,size=(8, 4)), columns=list('ABCD')) \ndf['tmp']= '#GiraffesAreFake' \nfp.write('test.parquet', df, row_group_offsets=2, file_scheme='hive')\nfp.write('testrg.parquet', df, row_group_offsets=2)" | python3
     cap noi parquet use using test.parquet, clear rg(1 3 2) highlevel
     cap noi parquet use using test.parquet, clear rg(1 3 2)
@@ -21,7 +21,7 @@ if ( `:list posof `"python"' in 0' == 0 ) {
 * Row groups
 * ----------
 
-if ( `:list posof `"python"' in 0' == 0 ) {
+if ( `:list posof `"python"' in 0' > 0 ) {
     cap noi parquet use using testrg.parquet, clear
     l
     cap noi parquet use using testrg.parquet, clear rg(1 3)
@@ -212,10 +212,12 @@ set rmsg off
 * Describe
 * --------
 
-parquet desc testrg.parquet
-assert r(num_row_groups) == 4
-parquet desc testrg.parquet, rg(2 4)
-assert r(num_row_groups) == 2
+if ( `:list posof `"python"' in 0' > 0 ) {
+    parquet desc testrg.parquet
+    assert r(num_row_groups) == 4
+    parquet desc testrg.parquet, rg(2 4)
+    assert r(num_row_groups) == 2
+}
 
 parquet desc using auto.parquet
 assert r(num_row_groups) == 1

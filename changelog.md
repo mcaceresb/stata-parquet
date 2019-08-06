@@ -1,6 +1,14 @@
 Change Log
 ==========
 
+## parquet-0.6.2 (2019-08-05)
+
+### Enhancements
+
+- `environment.yml` now pulls from `conda-forge`. Hence this
+  also updates `LogicalType::None` to `ConvertedType::NONE` and
+  `set_num_threads` to `set_use_threads` for arrow-cpp version 0.14
+
 ## parquet-0.6.1 (2019-07-31)
 
 ### Bug fixes

@@ -103,6 +103,7 @@ ST_retcode sf_ll_write_varlist(
         // ----------
 
         // TODO: Logical type is basically format?
+        // TODO: Logical type vs Converted type?
         for (j = 0; j < ncol; j++) {
             vtype = vtypes[j];
             if ( vtype == -1 ) {
@@ -111,7 +112,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::BOOLEAN,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -121,7 +122,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::INT32,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -131,7 +132,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::INT32,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -141,7 +142,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::FLOAT,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -151,7 +152,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::DOUBLE,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -162,7 +163,7 @@ ST_retcode sf_ll_write_varlist(
                             vnames[j].c_str(),
                             Repetition::REQUIRED,
                             Type::FIXED_LEN_BYTE_ARRAY,
-                            LogicalType::NONE,
+                            ConvertedType::NONE,
                             vtype
                         )
                     );
@@ -173,7 +174,7 @@ ST_retcode sf_ll_write_varlist(
                             vnames[j].c_str(),
                             Repetition::OPTIONAL,
                             Type::BYTE_ARRAY,
-                            LogicalType::NONE
+                            ConvertedType::NONE
                         )
                     );
                 }
@@ -333,7 +334,7 @@ ST_retcode sf_ll_write_varlist(
         }
         sf_running_timer (&timer, "Wrote data from memory");
     } catch (const std::exception& e) {
-        sf_errprintf("Parquet read error: %s\n", e.what());
+        sf_errprintf("Parquet write error: %s\n", e.what());
         return(-1);
     }
 
@@ -446,6 +447,7 @@ ST_retcode sf_ll_write_varlist_if(
         // ----------
 
         // TODO: Logical type is basically format?
+        // TODO: Logical type vs Converted type?
         for (j = 0; j < ncol; j++) {
             vtype = vtypes[j];
             if ( vtype == -1 ) {
@@ -454,7 +456,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::BOOLEAN,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -464,7 +466,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::INT32,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -474,7 +476,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::INT32,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -484,7 +486,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::FLOAT,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -494,7 +496,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::DOUBLE,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -505,7 +507,7 @@ ST_retcode sf_ll_write_varlist_if(
                             vnames[j].c_str(),
                             Repetition::REQUIRED,
                             Type::FIXED_LEN_BYTE_ARRAY,
-                            LogicalType::NONE,
+                            ConvertedType::NONE,
                             vtype
                         )
                     );
@@ -516,7 +518,7 @@ ST_retcode sf_ll_write_varlist_if(
                             vnames[j].c_str(),
                             Repetition::OPTIONAL,
                             Type::BYTE_ARRAY,
-                            LogicalType::NONE
+                            ConvertedType::NONE
                         )
                     );
                 }
@@ -690,7 +692,7 @@ ST_retcode sf_ll_write_varlist_if(
         }
         sf_running_timer (&timer, "Wrote data from memory");
     } catch (const std::exception& e) {
-        sf_errprintf("Parquet read error: %s\n", e.what());
+        sf_errprintf("Parquet write error: %s\n", e.what());
         return(-1);
     }
 
