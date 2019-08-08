@@ -3,10 +3,15 @@
 // matrices
 //     __sparquet_coltypes
 //     __sparquet_colix
+//     __sparquet_rowgix
 // scalars
 //     __sparquet_ncol
 //     __sparquet_into
 //     __sparquet_infrom
+//     __sparquet_nread
+//     __sparquet_readrg
+//     __sparquet_progress
+//     __sparquet_check
 
 ST_retcode sf_ll_read_varlist(
     const char *fname,
@@ -15,11 +20,14 @@ ST_retcode sf_ll_read_varlist(
     const uint64_t strbuffer)
 {
     ST_retcode rc = 0, any_rc = 0;
+    SPARQUET_CHAR(vscalar, 32);
 
     bool is_null;
-    int64_t nrow_groups, maxstrlen;
-    int64_t r, i, j, jsel, ix, ig;
+    ST_double progress;
+    int64_t nrow_groups, maxstrlen, tobs, ttot, tevery, tread;
+    int64_t rg, r, i, j, jsel, ix, ig, readrg, _readrg;
     int64_t warn_strings = 0, ncol = 1, infrom = 0, into = 0;
+    int64_t cread = 0, rgread = 0, nread = 0;
 
     // Declare all the value types
     // ---------------------------
@@ -70,13 +78,23 @@ ST_retcode sf_ll_read_varlist(
         ix = ig = 0;
 
         // Read selected columns; read in range
-        if ( (rc = sf_scalar_int("__sparquet_ncol",   15, &ncol))   ) any_rc = rc;
-        if ( (rc = sf_scalar_int("__sparquet_infrom", 17, &infrom)) ) any_rc = rc;
-        if ( (rc = sf_scalar_int("__sparquet_into",   15, &into))   ) any_rc = rc;
+        if ( (rc = sf_scalar_int("__sparquet_ncol",     15, &ncol))     ) any_rc = rc;
+        if ( (rc = sf_scalar_int("__sparquet_infrom",   17, &infrom))   ) any_rc = rc;
+        if ( (rc = sf_scalar_int("__sparquet_into",     15, &into))     ) any_rc = rc;
+        if ( (rc = sf_scalar_int("__sparquet_readrg",   17, &readrg))   ) any_rc = rc;
+        if ( (rc = sf_scalar_dbl("__sparquet_progress", 19, &progress)) ) any_rc = rc;
+        if ( (rc = sf_scalar_int("__sparquet_check",    16, &tevery))   ) any_rc = rc;
 
+        _readrg = readrg? readrg: 1;
         maxstrlen = 1;
         int64_t vtypes[ncol];
         int64_t colix[ncol];
+        int64_t rowgix[_readrg];
+
+        // Adjust row group selection to be 0-indexed
+        if ( (rc = sf_matrix_int("__sparquet_rowgix", 17, _readrg, rowgix)) ) any_rc = rc;
+        for (j = 0; j < _readrg; j++)
+            --rowgix[j];
 
         // Adjust column selection to be 0-indexed
         if ( (rc = sf_matrix_int("__sparquet_colix", 16, ncol, colix)) ) any_rc = rc;
@@ -100,19 +118,47 @@ ST_retcode sf_ll_read_varlist(
         sf_printf_debug(verbose, "\tColumns: %ld\n", ncol);
         sf_printf_debug(verbose, "\tRows:    %ld\n", --into - --infrom + 1);
 
+        tobs   = into - infrom + 1;
+        ttot   = ncol * tobs;
+        tread  = 0;
+
+        // Check row groups make sense
+        if ( readrg ) {
+            for (r = 0; r < readrg; ++r) {
+                if ( (rowgix[r] + 1) > nrow_groups ) {
+                    sf_errprintf("Attempted to row group %ld but file only had %ld.\n",
+                                 rowgix[r] + 1, nrow_groups);
+                    rc = 17301;
+                    goto exit;
+                }
+            }
+        }
+
         // Loop through each group
         // -----------------------
 
         // For each group, loop through each column
         // For each column, loop through each row
 
-        clock_t timer = clock();
+        rg = 0;
+        clock_t timer  = clock();
+        clock_t stimer = clock();
         for (r = 0; r < nrow_groups; ++r) {
+            if ( readrg ) {
+                if ( r == rowgix[rg] ) {
+                    rg++;
+                }
+                else {
+                    continue;
+                }
+            }
+            rgread = 0;
             ix += ig;
             ig = 0;
             if ( ix > into ) break;
             row_group_reader = parquet_reader->RowGroup(r);
             for (j = 0; j < ncol; j++) {
+                cread = 0;
                 i = 0;
                 jsel = colix[j];
                 // column_reader = row_group_reader->Column(jsel);
@@ -125,9 +171,22 @@ ST_retcode sf_ll_read_varlist(
                         }
                         i--;
                         while ( bool_scanner->HasNext() && i++ <= (into - ix) ) {
+                            if ( (i - infrom) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, nrow_groups,
+                                    j + 1, ncol,
+                                    i + ix - infrom, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             bool_scanner->NextValue(&vbool, &is_null);
                             // sf_printf_debug(2, "\t(bool, %ld, %ld): %9.4f\n", j, i + ix, (ST_double) vbool);
                             if ( (rc = SF_vstore(j + 1, i + ix - infrom, is_null? SV_missval: (ST_double) vbool)) ) goto exit;
+                            cread++;
                         }
                         break;
                     case Type::INT32:      // long
@@ -137,9 +196,22 @@ ST_retcode sf_ll_read_varlist(
                         }
                         i--;
                         while ( int32_scanner->HasNext() && i++ <= (into - ix) ) {
+                            if ( (i - infrom) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, nrow_groups,
+                                    j + 1, ncol,
+                                    i + ix - infrom, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             int32_scanner->NextValue(&vint32, &is_null);
                             // sf_printf_debug(2, "\t(int32, %ld, %ld): %9.4f\n", j, i + ix, (ST_double) vint32);
                             if ( (rc = SF_vstore(j + 1, i + ix - infrom, is_null? SV_missval: (ST_double) vint32)) ) goto exit;
+                            cread++;
                         }
                         break;
                     case Type::INT64:      // double
@@ -149,9 +221,22 @@ ST_retcode sf_ll_read_varlist(
                         }
                         i--;
                         while ( int64_scanner->HasNext() && i++ <= (into - ix) ) {
+                            if ( (i - infrom) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, nrow_groups,
+                                    j + 1, ncol,
+                                    i + ix - infrom, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             int64_scanner->NextValue(&vint64, &is_null);
                             // sf_printf_debug(2, "\t(int64, %ld, %ld): %9.4f\n", j, i + ix, (ST_double) vint64);
                             if ( (rc = SF_vstore(j + 1, i + ix - infrom, is_null? SV_missval: (ST_double) vint64)) ) goto exit;
+                            cread++;
                         }
                         break;
                     case Type::INT96:
@@ -165,9 +250,22 @@ ST_retcode sf_ll_read_varlist(
                         }
                         i--;
                         while ( float_scanner->HasNext() && i++ <= (into - ix) ) {
+                            if ( (i - infrom) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, nrow_groups,
+                                    j + 1, ncol,
+                                    i + ix - infrom, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             float_scanner->NextValue(&vfloat, &is_null);
                             // sf_printf_debug(2, "\t(float, %ld, %ld): %9.4f\n", j, i + ix, (ST_double) vfloat);
                             if ( (rc = SF_vstore(j + 1, i + ix - infrom, is_null? SV_missval: (ST_double) vfloat)) ) goto exit;
+                            cread++;
                         }
                         break;
                     case Type::DOUBLE:     // double
@@ -177,9 +275,22 @@ ST_retcode sf_ll_read_varlist(
                         }
                         i--;
                         while ( double_scanner->HasNext() && i++ <= (into - ix) ) {
+                            if ( (i - infrom) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, nrow_groups,
+                                    j + 1, ncol,
+                                    i + ix - infrom, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             double_scanner->NextValue(&vdouble, &is_null);
                             // sf_printf_debug(debug, "\t(double, %ld, %ld): %9.4f\n", j, i + ix, (ST_double) vdouble);
                             if ( (rc = SF_vstore(j + 1, i + ix - infrom, is_null? SV_missval: vdouble)) ) goto exit;
+                            cread++;
                         }
                         break;
                     case Type::BYTE_ARRAY: // str#, strL
@@ -189,6 +300,18 @@ ST_retcode sf_ll_read_varlist(
                         }
                         i--;
                         while ( ba_scanner->HasNext() && i++ <= (into - ix) ) {
+                            if ( (i - infrom) % tevery == 0 ) {
+                                tread += tevery;
+                                sf_running_progress_read(
+                                    &timer,
+                                    &stimer,
+                                    progress,
+                                    r + 1, nrow_groups,
+                                    j + 1, ncol,
+                                    i + ix - infrom, tobs,
+                                    100 * tread / ttot
+                                );
+                            }
                             ba_scanner->NextValue(&vbytearray, &is_null);
                             if ( is_null ) {
                                 warn_strings++;
@@ -204,6 +327,7 @@ ST_retcode sf_ll_read_varlist(
                                 // sf_printf_debug(debug, "\t(BA, %ld, %ld): %s\n", j, i + ix, vstr);
                                 if ( (rc = SF_sstore(j + 1, i + ix - infrom, vstr)) ) goto exit;
                                 memset(vstr, '\0', maxstrlen);
+                                cread++;
                             }
                         }
                         break;
@@ -221,6 +345,18 @@ ST_retcode sf_ll_read_varlist(
                             }
                             i--;
                             while ( flba_scanner->HasNext() && i++ <= (into - ix) ) {
+                                if ( (i - infrom) % tevery == 0 ) {
+                                    tread += tevery;
+                                    sf_running_progress_read(
+                                        &timer,
+                                        &stimer,
+                                        progress,
+                                        r + 1, nrow_groups,
+                                        j + 1, ncol,
+                                        i + ix - infrom, tobs,
+                                        100 * tread / ttot
+                                    );
+                                }
                                 flba_scanner->NextValue(&vfixedlen, &is_null);
                                 if ( is_null ) {
                                     warn_strings++;
@@ -230,6 +366,7 @@ ST_retcode sf_ll_read_varlist(
                                     // sf_printf_debug(debug, "\t(FLBA, %ld, %ld): %s\n", j, i + ix, vstr);
                                     if ( (rc = SF_sstore(j + 1, i + ix - infrom, vstr)) ) goto exit;
                                     memset(vstr, '\0', maxstrlen);
+                                    cread++;
                                 }
                             }
                         }
@@ -240,7 +377,9 @@ ST_retcode sf_ll_read_varlist(
                         goto exit;
                 }
                 ig = i > ig? i: ig;
+                rgread = cread > rgread? cread: rgread;
             }
+            nread += rgread;
         }
 
         if ( warn_strings > 0 ) {
@@ -252,6 +391,14 @@ ST_retcode sf_ll_read_varlist(
         sf_errprintf("Parquet read error: %s\n", e.what());
         return(-1);
     }
+
+    if ( (into - infrom + 1) != nread ) {
+        sf_errprintf("Warning: Expected %ld obs but found %ld\n",
+                     (into - infrom + 1), nread);
+    }
+
+    memcpy(vscalar, "__sparquet_nread", 16);
+    if ( (rc = SF_scal_save(vscalar, (ST_double) nread)) ) goto exit;
 
 exit:
     return(rc);

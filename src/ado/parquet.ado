@@ -1,4 +1,4 @@
-*! version 0.5.2 30Jan2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.6.3 08Aug2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -10,6 +10,8 @@
 * 17103: Unsupported type (str#)
 * 17104: Unsupported type (strL)
 * 17201: Inconsistent column types
+* 17301: Invalid row group (not in range)
+* 17302: Invalid row group (not in range)
 * 198:   Generic error
 * Other: Stata error
 
@@ -19,6 +21,7 @@
 capture program drop parquet
 program parquet
     gettoken todo 0: 0
+    local todo `todo'
     if ( inlist(`"`todo'"', "read", "use") ) {
         if ( strpos(`"`0'"', "using") ) {
             parquet_read `0'
@@ -36,7 +39,20 @@ program parquet
         }
     }
     else if ( inlist(`"`todo'"', "desc", "descr", "descri", "describ", "describe") ) {
-        parquet_desc `0'
+        if ( strpos(`"`0'"', "using") ) {
+            parquet_desc `0'
+        }
+        else {
+            parquet_desc using `0'
+        }
+    }
+    else if ( inlist(`"`todo'"', "version", "" ) ) {
+        which parquet
+        cap noi plugin call parquet_plugin, version `" "'
+        if ( _rc ) {
+            disp as err "({bf:warning}: parquet_plugin internal check failed)"
+        }
+        exit _rc
     }
     else {
         disp as err `"Unknown sub-comand `todo'"'
@@ -49,29 +65,85 @@ end
 
 capture program drop parquet_read
 program parquet_read
-    syntax [namelist]          /// varlist to read; must be 'namelist' because the
-                               /// variables do not exist in memory.  The names must be
-                               /// the Stata equivalent of the parquet name. E.g. 'foo
-                               /// bar' must be foo_bar
-                               ///
-           using/,             /// parquet file to read
-    [                          ///
-           clear               /// clear the data in memory
-           verbose             /// verbose
-           in(str)             /// read in range
-           highlevel           /// use the high-level reader
-           lowlevel            /// use the low-level reader
-           threads(int 1)      /// try multi-threading; high-level only
-           strbuffer(int 65)   /// fall back to string buffer if length not parsed
-           nostrscan           /// do not scan string lengths (use strbuffer)
-           STRSCANner(real -1) /// scan string lengths (ever obs)
+    syntax [namelist]            /// varlist to read; must be 'namelist' because the
+                                 /// variables do not exist in memory.  The names must be
+                                 /// the Stata equivalent of the parquet name. E.g. 'foo
+                                 /// bar' must be foo_bar
+                                 ///
+           using/,               /// parquet file to read
+    [                            ///
+           clear                 /// clear the data in memory
+           verbose               /// verbose
+           progress(real 30)     /// progress every x seconds
+           _check(int 100000)    /// check timer every _check obs
+           rg(numlist)           /// read row groups
+           ROWGroups(numlist)    /// read row groups
+           in(str)               /// read in range
+           highlevel             /// use the high-level reader
+           lowlevel              /// use the low-level reader
+           threads(int 1)        /// try multi-threading; high-level only
+           strbuffer(int 65)     /// fall back to string buffer if length not parsed
+           nostrscan             /// do not scan string lengths (use strbuffer)
+           STRSCANner(real -1)   /// scan string lengths (ever obs)
     ]
+
+    if ( `progress' <= 0 | `progress' >= . ) {
+        disp as err "invalid number of seconds in progress()"
+        exit 198
+    }
 
     qui desc, short
     if ( `r(changed)' & `"`clear'"' == "" ) {
         error 4
     }
 
+    * Read row groups
+    if ( (`"`rg'"' != "") & (`"`rowgroups'"' != "") ) {
+        disp as err "rg() and rowgroups() are aliases; specify only one."
+        exit 198
+    }
+    else if ( `"`rowgroups'"' != "" ) {
+        local rg: copy local rowgroups
+    }
+    else if ( `"`rg'"' == "" ) {
+        local rg none
+    }
+
+    * TODO: Allow repeat values for fast append?
+    * NOTE: MUST be sorted
+    local rg: list uniq rg
+    local rg: list sort rg
+
+    if ( `"`rg'"' == `"none"' ) {
+        mata __sparquet_rowgix = 1
+    }
+    else {
+        mata __sparquet_rowgix = strtoreal(tokens(st_local("rg")))
+
+        cap mata assert(sum(round(__sparquet_rowgix) :!= __sparquet_rowgix) :== 0)
+        if ( _rc ) {
+            disp as err "Invalid row groups passed to rg()"
+            clean_exit
+            exit 198
+        }
+
+        cap mata assert(sum(__sparquet_rowgix :<= 0) == 0)
+        if ( _rc ) {
+            disp as err "Invalid row groups passed to rg()"
+            clean_exit
+            exit 198
+        }
+
+        cap mata assert(sum(__sparquet_rowgix :>= .) == 0)
+        if ( _rc ) {
+            disp as err "Invalid row groups passed to rg()"
+            clean_exit
+            exit 198
+        }
+    }
+    mata st_matrix("__sparquet_rowgix", __sparquet_rowgix)
+
+    * Try to read directory; otherwise it is a file
     local cwd `"`c(pwd)'"'
     cap cd `"`using'"'
     if ( _rc ) {
@@ -87,9 +159,22 @@ program parquet_read
         }
         local filedir: copy local using
         tempfile using
-        mata: __sparquet_putfilenames(`"`using'"', `"`filedir'"', sort(tokens(`"`files'"')', 1))
+        mata: __sparquet_filenames = sort(tokens(`"`files'"')', 1)
+        if ( `"`rg'"' != `"none"' ) {
+            cap mata: assert(max(__sparquet_rowgix) <= rows(__sparquet_filenames))
+            if ( _rc ) {
+                mata: errprintf("group %g not allowed; parquet dataset only has %g groups", /*
+                             */ max(__sparquet_rowgix), rows(__sparquet_filenames))
+                clean_exit
+                exit 198
+            }
+            mata: __sparquet_filenames = __sparquet_filenames[__sparquet_rowgix]
+            mata: st_local("files", invtokens(__sparquet_filenames'))
+        }
+        mata: __sparquet_putfilenames(`"`using'"', `"`filedir'"', __sparquet_filenames)
     }
 
+    * Misc options
     if ( "`highlevel'" == "" ) local lowlevel lowlevel
 
     if ( `strscanner' == -1 ) local strscanner .
@@ -100,6 +185,7 @@ program parquet_read
 
     if ( (`"`multi'"' != "") & (`"`lowlevel'"' == "") ) {
         disp as err "Multi-file reading not available with -highlevel-"
+        clean_exit
         exit 198
     }
 
@@ -109,14 +195,17 @@ program parquet_read
 
     if ( (`threads' > 1) & ("`lowlevel'" != "") ) {
         disp as err "Option -threads()- not available with -lowlevel-"
+        clean_exit
         exit 198
     }
     if ( (`threads' > 1) & !`c(MP)' ) {
         disp as err "Option -threads()- only available with Stata/MP"
+        clean_exit
         exit 198
     }
     if ( `threads' < 1 ) {
         disp as err "Specify a valid number of threads"
+        clean_exit
         exit 198
     }
     if ( `threads' > 1 ) {
@@ -133,10 +222,16 @@ program parquet_read
     scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
     scalar __sparquet_strbuffer = `strbuffer'
     scalar __sparquet_threads   = `threads'
+    scalar __sparquet_nbytes    = .
+    scalar __sparquet_ngroup    = .
     scalar __sparquet_nrow      = .
     scalar __sparquet_ncol      = .
     scalar __sparquet_nread     = .
+    scalar __sparquet_progress  = `progress'
+    scalar __sparquet_check     = `_check'
+    scalar __sparquet_readrg    = cond(`"`rg'"' == `"none"', 0, `:list sizeof rg')
     matrix __sparquet_coltypes  = .
+    matrix __sparquet_rawtypes  = .
 
     * Check plugin loaded OK
     * ----------------------
@@ -191,6 +286,7 @@ program parquet_read
         confirm number `into'
         if ( `into' < 0 ) {
             disp as err "Cannot read from a negative number"
+            clean_exit
             exit 198
         }
     }
@@ -212,6 +308,7 @@ program parquet_read
     }
     if ( `into' > `=scalar(__sparquet_nrow)' ) {
         disp as err "Tried to read until row `into' but data had `=scalar(__sparquet_nrow)' rows."
+        clean_exit
         exit 198
     }
     scalar __sparquet_infrom = `infrom'
@@ -274,7 +371,10 @@ program parquet_read
     }
     scalar __sparquet_strscan = `strscanner'
 
-    matrix __sparquet_coltypes = J(1, `=scalar(__sparquet_ncol)', .)
+    mata __sparquet_rawtypes = J(1, `=scalar(__sparquet_ncol)', .)
+    mata __sparquet_coltypes = J(1, `=scalar(__sparquet_ncol)', .)
+    mata st_matrix("__sparquet_coltypes", __sparquet_coltypes)
+    mata st_matrix("__sparquet_rawtypes", __sparquet_rawtypes)
     cap noi plugin call parquet_plugin, coltypes `"`using'"'
     if ( _rc == -1 ) {
         disp as err "Parquet library error."
@@ -287,6 +387,8 @@ program parquet_read
         clean_exit
         exit `rc'
     }
+    mata __sparquet_coltypes = st_matrix("__sparquet_coltypes")
+    mata __sparquet_rawtypes = st_matrix("__sparquet_rawtypes")
 
     * Generate empty dataset
     * ----------------------
@@ -297,7 +399,7 @@ program parquet_read
     local cnames
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
         mata: st_local("cname", __sparquet_varnames[`j'])
-        local ctype = __sparquet_coltypes[1, `j']
+        mata: st_local("ctype", strofreal(__sparquet_coltypes[`j']))
 
              if ( `ctype' == -1 ) local cstr byte
         else if ( `ctype' == -2 ) local cstr int
@@ -320,9 +422,12 @@ program parquet_read
     * Read parquet file!
     * ------------------
 
+    * NOTE(mauricio): Allocating variables and _then_ observations is _way_ faster
+
     clear
+    qui set obs 1
+    mata: (void) st_addvar(tokens(st_local("ctypes")), tokens(st_local("cnames")))
     qui set obs `=`into'-`infrom'+1'
-    mata: (void) st_addvar(tokens("`ctypes'"), tokens("`cnames'"))
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
         mata: st_local("vlabel", __sparquet_colnames[`j'])
         mata: st_local("vname", __sparquet_varnames[`j'])
@@ -351,6 +456,9 @@ program parquet_read
     }
     * desc
     * l
+    if ( `=scalar(__sparquet_nread) < _N' ) {
+        qui keep in 1 / `=scalar(__sparquet_nread)'
+    }
 
     clean_exit
     exit 0
@@ -361,21 +469,35 @@ end
 
 capture program drop parquet_write
 program parquet_write
-    syntax [varlist]      /// varlist to export
-           using/         /// target dataset file
-           [if]           /// export if condition
-           [in],          /// export in range
-    [                     ///
-           replace        /// replace target file, if it exists
-           verbose        /// verbose
-           rgsize(real 0) /// row-group size (should be large; default is N by nvars)
-           lowlevel       /// (debugging only) use low-level writer
-           fixedlen       /// (debugging only) export strings as fixed length
+    syntax [varlist]          /// varlist to export
+           using/             /// target dataset file
+           [if]               /// export if condition
+           [in],              /// export in range
+    [                         ///
+           progress(real 30)  /// progress every x seconds
+           _check(int 100000) /// check timer every _check obs
+           replace            /// replace target file, if it exists
+           verbose            /// verbose
+           rgsize(real 0)     /// row-group size (should be large; default is N by nvars)
+           chunkbytes(real 0) /// max number of bytes per column chunk (highlevel oly)
+           lowlevel           /// (debugging only) use low-level writer
+           fixedlen           /// (debugging only) export strings as fixed length
     ]
 
     if ( "`lowlevel'" != "" ) {
         disp as err "{bf:Warning:} Low-level parser should only be used for debugging."
         disp as err "{bf:Warning:} Low-level parser does not adequately write missing values."
+        if ( `rgsize' != 0 ) {
+            disp as err "{bf:Warning:} Option rgsize() ignored with -lowlevel-"
+        }
+        if ( `chunkbytes' != 0 ) {
+            disp as err "{bf:Warning:} Option chunkbytes() ignored with -lowlevel-"
+        }
+    }
+
+    if ( `progress' <= 0 | `progress' >= . ) {
+        disp as err "invalid number of seconds in progress()"
+        exit 198
     }
 
     * Parse plugin options
@@ -385,18 +507,37 @@ program parquet_write
         disp as err "Option -fixedlen- requires option -lowlevel-"
         exit 198
     }
+
     if ( ("`fixedlen'" != "") & ("`lowlevel'" != "") ) {
         disp as txt "Warning: -fixedlen- will pad strings of varying width."
     }
 
-    scalar __sparquet_if        = `"`if'"' != ""
-    scalar __sparquet_verbose   = `"`verbose'"' != ""
-    scalar __sparquet_multi     = 0
-    scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
-    scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
-    scalar __sparquet_rg_size   = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
-    scalar __sparquet_strbuffer = 1
-    scalar __sparquet_ncol      = `:list sizeof varlist'
+    if ( `rgsize' < 0 ) {
+        disp as err "rgsize() must be a positive integer"
+        exit 198
+    }
+
+    if ( `chunkbytes' < 0 ) {
+        disp as err "chunkbytes() must be a positive integer"
+        exit 198
+    }
+
+    scalar __sparquet_if         = `"`if'"' != ""
+    scalar __sparquet_verbose    = `"`verbose'"' != ""
+    scalar __sparquet_multi      = 0
+    scalar __sparquet_lowlevel   = `"`lowlevel'"' != ""
+    scalar __sparquet_fixedlen   = `"`fixedlen'"' != ""
+    scalar __sparquet_rg_size    = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
+    scalar __sparquet_chunkbytes = cond(`chunkbytes', `chunkbytes', `=2^30')
+    scalar __sparquet_strbuffer  = 1
+    scalar __sparquet_ncol       = `:list sizeof varlist'
+    scalar __sparquet_readrg     = 0
+    scalar __sparquet_progress   = `progress'
+    scalar __sparquet_check      = `_check'
+    scalar __sparquet_nbytes     = .
+    scalar __sparquet_ngroup     = .
+    matrix __sparquet_rowgix     = .
+    matrix __sparquet_rawtypes   = .
 
     * Check plugin loaded OK
     * ----------------------
@@ -418,7 +559,7 @@ program parquet_write
     * --------------------
 
     check_matsize, nvars(`=scalar(__sparquet_ncol)')
-    matrix __sparquet_coltypes = J(1, `=scalar(__sparquet_ncol)', .)
+    mata __sparquet_coltypes = J(1, `=scalar(__sparquet_ncol)', .)
 
     // TODO: Support strL as ByteArray?
     forvalues j = 1 / `=scalar(__sparquet_ncol)' {
@@ -443,14 +584,17 @@ program parquet_write
         }
         else {
             disp as err "Column type not supported: `cstr'"
+            clean_exit
             exit 17104
         }
-        matrix __sparquet_coltypes[1, `j'] = `ctype'
+        mata __sparquet_coltypes[`j'] = `ctype'
     }
+    mata st_matrix("__sparquet_coltypes", __sparquet_coltypes)
 
     cap confirm file `"`using'"'
     if ( (_rc == 0) & ("`replace'" == "") ) {
         disp as err `"file '`using'' already exists"'
+        clean_exit
         exit 602
     }
 
@@ -475,6 +619,489 @@ program parquet_write
 end
 
 * ---------------------------------------------------------------------
+* Parquet Describer
+
+capture program drop parquet_desc
+program parquet_desc, rclass
+    syntax [namelist]           /// varlist to read; must be 'namelist' because the
+                                /// variables do not exist in memory.  The names must be
+                                /// the Stata equivalent of the parquet name. E.g. 'foo
+                                /// bar' must be foo_bar
+                                ///
+           using/,              /// parquet file to read
+    [                           ///
+           rg(numlist)          /// read row groups
+           ROWGroups(numlist)   /// read row groups
+           in(str)              /// read in range
+           STRSCANner(real -1)  /// scan string lengths (default is 2^8 rows)
+    ]
+
+    * ---------------
+    * Read row groups
+    * ---------------
+
+    if ( (`"`rg'"' != "") & (`"`rowgroups'"' != "") ) {
+        disp as err "rg() and rowgroups() are aliases; specify only one."
+        exit 198
+    }
+    else if ( `"`rowgroups'"' != "" ) {
+        local rg: copy local rowgroups
+    }
+    else if ( `"`rg'"' == "" ) {
+        local rg none
+    }
+
+    * TODO: Allow repeat values for fast append?
+    * NOTE: MUST be sorted
+    local rg: list uniq rg
+    local rg: list sort rg
+
+    if ( `"`rg'"' == `"none"' ) {
+        mata __sparquet_rowgix = 1
+    }
+    else {
+        mata __sparquet_rowgix = strtoreal(tokens(st_local("rg")))
+
+        cap mata assert(sum(round(__sparquet_rowgix) :!= __sparquet_rowgix) :== 0)
+        if ( _rc ) {
+            disp as err "Invalid row groups passed to rg()"
+            clean_exit
+            exit 198
+        }
+
+        cap mata assert(sum(__sparquet_rowgix :<= 0) == 0)
+        if ( _rc ) {
+            disp as err "Invalid row groups passed to rg()"
+            clean_exit
+            exit 198
+        }
+
+        cap mata assert(sum(__sparquet_rowgix :>= .) == 0)
+        if ( _rc ) {
+            disp as err "Invalid row groups passed to rg()"
+            clean_exit
+            exit 198
+        }
+    }
+    mata st_matrix("__sparquet_rowgix", __sparquet_rowgix)
+
+    * ---------------------------------------------
+    * Try to read directory; otherwise it is a file
+    * ---------------------------------------------
+
+    local cwd `"`c(pwd)'"'
+    cap cd `"`using'"'
+    if ( _rc ) {
+        confirm file `"`using'"'
+        local multi
+    }
+    else {
+        local multi multi
+        qui cd `"`cwd'"'
+        local files: dir `"`using'"' files "*.parquet"
+        foreach file of local files {
+            confirm file `"`using'/`file'"'
+        }
+        local filedir: copy local using
+        tempfile using
+        mata: __sparquet_filenames = sort(tokens(`"`files'"')', 1)
+        if ( `"`rg'"' != `"none"' ) {
+            cap mata: assert(max(__sparquet_rowgix) <= rows(__sparquet_filenames))
+            if ( _rc ) {
+                mata: errprintf("group %g not allowed; parquet dataset only has %g groups", /*
+                             */ max(__sparquet_rowgix), rows(__sparquet_filenames))
+                clean_exit
+                exit 198
+            }
+            mata: __sparquet_filenames = __sparquet_filenames[__sparquet_rowgix]
+            mata: st_local("files", invtokens(__sparquet_filenames'))
+        }
+        mata: __sparquet_putfilenames(`"`using'"', `"`filedir'"', __sparquet_filenames)
+    }
+
+    * ------------------
+    * Initialize scalars
+    * ------------------
+
+    scalar __sparquet_if        = 0
+    scalar __sparquet_verbose   = 0
+    scalar __sparquet_multi     = `"`multi'"' != ""
+    scalar __sparquet_lowlevel  = 1
+    scalar __sparquet_fixedlen  = 0
+    scalar __sparquet_strbuffer = 255
+    scalar __sparquet_threads   = 1
+    scalar __sparquet_nbytes    = .
+    scalar __sparquet_ngroup    = .
+    scalar __sparquet_nrow      = .
+    scalar __sparquet_ncol      = .
+    scalar __sparquet_nread     = .
+    scalar __sparquet_readrg    = cond(`"`rg'"' == `"none"', 0, `:list sizeof rg')
+    matrix __sparquet_coltypes  = .
+    matrix __sparquet_rawtypes  = .
+
+    * ----------------------
+    * Check plugin loaded OK
+    * ----------------------
+
+    cap noi plugin call parquet_plugin, check `"`using'"'
+    if ( _rc == -1 ) {
+        disp as err "Parquet library error."
+        clean_exit
+        exit -1
+    }
+    else if ( _rc ) {
+        local rc = _rc
+        disp as err "Parquet plugin not loaded correctly."
+        clean_exit
+        exit `rc'
+    }
+
+    * --------------------------
+    * Number of rows and columns
+    * --------------------------
+
+    cap noi plugin call parquet_plugin, shape `"`using'"'
+    if ( _rc == -1 ) {
+        disp as err "Parquet library error."
+        clean_exit
+        exit 198
+    }
+    else if ( _rc ) {
+        local rc = _rc
+        disp as err "Unable to read column and row information."
+        clean_exit
+        exit `rc'
+    }
+    check_matsize, nvars(`=scalar(__sparquet_ncol)')
+
+    * --------------
+    * Parse in range
+    * --------------
+
+    gettoken infrom into: in,   p(/)
+    gettoken slash  into: into, p(/)
+
+    if ( "`infrom'" == "f" ) local infrom 1
+    if ( "`infrom'" !=  "" ) {
+        confirm number `infrom'
+        if ( `infrom' == 0 ) local infrom 1
+        if ( `infrom' < 0 ) {
+            _assert(inlist("`into'", "l", "")), msg("Cannot read from a negative number")
+        }
+    }
+
+    if ( "`into'" == "l" ) local into
+    if ( "`into'" != "" ) {
+        confirm number `into'
+        if ( `into' < 0 ) {
+            disp as err "Cannot read from a negative number"
+            clean_exit
+            exit 198
+        }
+    }
+
+    if ( `"`infrom'"' == "" ) local infrom 1
+    if ( `"`into'"' == "" ) {
+        local into = cond((`"`slash'"' == "") & (`"`in'"' != ""), `infrom', `=scalar(__sparquet_nrow)')
+    }
+    if ( `"`in'"' != "" ) {
+        if ( `infrom' < 0 ) {
+            if ( `into' < 0 ) {
+                local infrom = `=scalar(__sparquet_nrow)' + `into' + 1
+                local into   = `infrom'
+            }
+            else {
+                local infrom = `into' + `infrom' + 1
+            }
+        }
+    }
+    if ( `into' > `=scalar(__sparquet_nrow)' ) {
+        disp as err "Tried to read until row `into' but data had `=scalar(__sparquet_nrow)' rows."
+        clean_exit
+        exit 198
+    }
+    scalar __sparquet_infrom = `infrom'
+    scalar __sparquet_into   = `into'
+
+    * ------------
+    * Column names
+    * ------------
+
+    tempfile colnames
+    cap noi plugin call parquet_plugin, colnames `"`using'"' `"`colnames'"'
+    if ( _rc == -1 ) {
+        disp as err "Parquet library error."
+        clean_exit
+        exit 198
+    }
+    else if ( _rc ) {
+        local rc = _rc
+        disp as err "Unable to parse column info."
+        clean_exit
+        exit `rc'
+    }
+    mata: __sparquet_colnames = __sparquet_getcolnames(`"`colnames'"')
+    mata: __sparquet_colix    = __sparquet_getcolix(__sparquet_colnames, tokens(`"`namelist'"'))
+    mata: __sparquet_varnames = __sparquet_makenames(__sparquet_colnames[__sparquet_colix])
+    mata: st_matrix("__sparquet_colix", rowshape(__sparquet_colix, 1))
+    mata: st_numscalar("__sparquet_ncol", length(__sparquet_colix))
+
+    * ------------
+    * Column types
+    * ------------
+
+    * byte:   -1, Int32, Boolean
+    * int:    -2, Int32
+    * long:   -3, Int32
+    * float:  -4, Float
+    * double: -5, Double, Int64
+    * str#:    #, ByteArray
+    * strL:    #? .?, not yet implemented
+
+    if ( `strscanner' == . ) {
+        local strscanner = `=scalar(__sparquet_nrow)'
+    }
+    else if ( `strscanner' > 0 ) {
+        if ( `strscanner' < 1 ) {
+            local strscanner = ceil(`strscanner' * `=scalar(__sparquet_nrow)')
+        }
+        else {
+            local strscanner = ceil(`strscanner')
+        }
+    }
+    else if ( `strscanner' == 0 ){
+        local strscanner = 0
+    }
+    else {
+        local strscanner = `=2^8'
+    }
+    scalar __sparquet_strscan = `strscanner'
+
+    mata __sparquet_rawtypes = J(1, `=scalar(__sparquet_ncol)', .)
+    mata __sparquet_coltypes = J(1, `=scalar(__sparquet_ncol)', .)
+    mata st_matrix("__sparquet_coltypes", __sparquet_coltypes)
+    mata st_matrix("__sparquet_rawtypes", __sparquet_rawtypes)
+    cap noi plugin call parquet_plugin, coltypes `"`using'"'
+    if ( _rc == -1 ) {
+        disp as err "Parquet library error."
+        clean_exit
+        exit 198
+    }
+    else if ( _rc ) {
+        local rc = _rc
+        disp as err "Unable to parse column info."
+        clean_exit
+        exit `rc'
+    }
+    mata __sparquet_coltypes = st_matrix("__sparquet_coltypes")
+    mata __sparquet_rawtypes = st_matrix("__sparquet_rawtypes")
+
+    * -------------------------
+    * Print dataset description
+    * -------------------------
+
+    * Raw types
+    * 1 BOOLEAN
+    * 2 INT32
+    * 3 INT64
+    * 4 INT96
+    * 5 FLOAT
+    * 6 DOUBLE
+    * 7 BYTE_ARRAY
+    * 8 FIXED_LEN_BYTE_ARRAY
+
+    mata __sparquet_describe(    /*
+        */ __sparquet_colix,     /*
+        */ __sparquet_colnames,  /*
+        */ __sparquet_rawtypes', /*
+        */ __sparquet_varnames', /*
+        */ __sparquet_coltypes')
+
+    mata st_local("varlist",         invtokens(__sparquet_varnames))
+    mata st_local("varlist_parquet", invtokens(__sparquet_colnames'))
+
+    return local varlist         = "`varlist'"
+    return local varlist_parquet = "`varlist_parquet'"
+
+    return scalar k              = scalar(__sparquet_nrow)
+    return scalar N              = scalar(__sparquet_ncol)
+    return scalar num_row_groups = scalar(__sparquet_ngroup)
+    return scalar width          = `bytes'
+
+    clean_exit
+    exit 0
+end
+
+cap mata: mata drop __sparquet_describe()
+cap mata: mata drop __sparquet_human()
+mata:
+void function __sparquet_describe(
+        real colvector colix,
+        string colvector colnames,
+        real colvector rawtypes,
+        string colvector varnames,
+        real colvector coltypes)
+{
+    real scalar i, l, anystr, bytes
+    string scalar strsep, strfmt, strfmt2
+    string colvector dstrHeadN
+    string colvector dstrHeadL
+    string colvector dstrHeadC
+    string colvector dstrBodyL
+    string colvector str_rawtypes, str_coltypes, str_colix
+    real   colvector strlens
+
+    str_colix    = J(rows(colix),    1, "")
+    str_rawtypes = J(rows(rawtypes), 1, "")
+    str_coltypes = J(rows(coltypes), 1, "")
+
+    strlens      = J(6, 1, 0)
+    dstrBodyL    = J(rows(varnames), 1, "")
+    dstrHeadC    = J(4, 1, "")
+    dstrHeadN    = J(3, 1, "")
+    dstrHeadL    = J(3, 1, "")
+
+    dstrHeadN[1] = strtrim(sprintf("%31.0fc", st_numscalar("__sparquet_nrow")))
+    dstrHeadN[2] = strtrim(sprintf("%31.0fc", st_numscalar("__sparquet_ncol")))
+    dstrHeadN[3] = strtrim(sprintf("%31.0fc", st_numscalar("__sparquet_ngroup")))
+
+    strfmt = sprintf("%%%gs", max((strlen(dstrHeadN) \ 3)))
+    dstrHeadL[1] = "   obs: " + sprintf(strfmt, dstrHeadN[1])
+    dstrHeadL[2] = "  vars: " + sprintf(strfmt, dstrHeadN[2])
+    dstrHeadL[3] = "groups: " + sprintf(strfmt, dstrHeadN[3])
+
+    for (i = 1; i <= rows(colix); i++)  {
+        str_colix[i] = sprintf("%g", colix[i])
+    }
+
+    for (i = 1; i <= rows(rawtypes); i++)  {
+        if ( rawtypes[i] == 1 ) str_rawtypes[i] = "bool"
+        if ( rawtypes[i] == 2 ) str_rawtypes[i] = "int32"
+        if ( rawtypes[i] == 3 ) str_rawtypes[i] = "int64"
+        if ( rawtypes[i] == 4 ) str_rawtypes[i] = "int96"
+        if ( rawtypes[i] == 5 ) str_rawtypes[i] = "float"
+        if ( rawtypes[i] == 6 ) str_rawtypes[i] = "double"
+        if ( rawtypes[i] == 7 ) str_rawtypes[i] = "barray"
+        if ( rawtypes[i] == 8 ) str_rawtypes[i] = "fl_barray"
+    }
+
+    bytes = 0
+    anystr = 0
+    for (i = 1; i <= rows(coltypes); i++)  {
+        if ( coltypes[i] == -1 ) {
+            str_coltypes[i] = "byte"
+            bytes = bytes + 1
+        }
+        if ( coltypes[i] == -2 ) {
+            str_coltypes[i] = "int"
+            bytes = bytes + 2
+        }
+        if ( coltypes[i] == -3 ) {
+            str_coltypes[i] = "long"
+            bytes = bytes + 3
+        }
+        if ( coltypes[i] == -4 ) {
+            str_coltypes[i] = "float"
+            bytes = bytes + 4
+        }
+        if ( coltypes[i] == -5 ) {
+            str_coltypes[i] = "double"
+            bytes = bytes + 8
+        }
+        if ( coltypes[i]  >  0 ) {
+            str_coltypes[i] = sprintf("str%g", coltypes[i])
+            bytes = bytes + coltypes[i] + 1
+            anystr = 1
+        }
+    }
+
+    strlens[1] = 1 + max(strlen(str_colix) \ 6)
+    strlens[2] = 1 + max(strlen(colnames) \ 4)
+    strlens[3] = 1 + max(strlen(str_rawtypes) \ 4)
+    strlens[4] = 1 + 4
+    strlens[5] = 1 + max(strlen(varnames) \ 4)
+    strlens[6] = 1 + max(strlen(str_coltypes) \ 4)
+
+    strfmt = sprintf(" %%-%gs ", strlens[1])
+    for (i = 2; i <= 6; i++) {
+        strfmt = strfmt + sprintf(" %%-%gs", strlens[i])
+    }
+
+    strfmt2 = sprintf(                               /*
+        */ "%%%gs %%s %%-%gs ",                      /*
+        */ strlens[1] + strlens[2] + strlens[3] + 3, /*
+        */ strlens[5] + strlens[6])
+
+    dstrHeadC[1] = sprintf(strfmt2, "parquet", (strlens[4] - 1) * " ", "  stata")
+    dstrHeadC[2] = sprintf(strfmt2, " ", "  -> ", " ")
+    dstrHeadC[3] = sprintf(strfmt, /*
+        */ "column", "name", "type", strlens[4] * " ", "column", "name")
+
+    dstrHeadC[4] = sprintf(strfmt2,                          /*
+        */ "-" * (strlens[1] + strlens[2] + strlens[3] + 4), /*
+        */ " " * (strlens[4] - 1),                           /*
+        */ "-" * (strlens[5] + strlens[6] + 2))
+
+    for (i = 1; i <= rows(varnames); i++)  {
+        dstrBodyL[i] = sprintf(strfmt, /*
+            */ str_colix[i],    /*
+            */ colnames[i],     /*
+            */ str_rawtypes[i], /*
+            */ " ",             /*
+            */ varnames[i],     /*
+            */ str_coltypes[i])
+    }
+
+    strsep = "-" * strlen(dstrHeadC[4])
+    printf("%s\n", strsep)
+    for (i = 1; i <= 3; i++)  {
+        printf("%s\n", dstrHeadL[i])
+    }
+    printf("%s\n", strsep)
+    for (i = 1; i <= 4; i++)  {
+        printf("%s\n", dstrHeadC[i])
+    }
+    for (i = 1; i <= rows(varnames); i++)  {
+        printf("%s\n", dstrBodyL[i])
+    }
+    printf("%s\n", strsep)
+
+    printf("Size on disk: %s\n", /*
+        */ __sparquet_human(st_numscalar("__sparquet_nbytes")))
+
+    if ( anystr ) {
+        if ( st_numscalar("__sparquet_strscan") < st_numscalar("__sparquet_nrow") ) {
+            printf("Size in memory (when read; approximate): %s\n", /*
+                */ __sparquet_human(st_numscalar("__sparquet_nrow") * bytes))
+            printf("(note: String sizes are approximate; run with strscan(.) for exact sizes)\n")
+        }
+        else {
+            printf("Size in memory (when read): %s\n", /*
+                */ __sparquet_human(st_numscalar("__sparquet_nrow") * bytes))
+        }
+    }
+
+    st_local("bytes", strofreal(bytes))
+}
+
+string scalar function __sparquet_human(real scalar bytes)
+{
+    if ( bytes < 1024^1 ) {
+        return(strtrim(sprintf("%31.0fc bytes", bytes / 1024^0)))
+    }
+    else if ( bytes < 1024^2 ) {
+        return(strtrim(sprintf("%31.1fcKiB", bytes / 1024^1)))
+    }
+    else if ( bytes < 1024^3 ) {
+        return(strtrim(sprintf("%31.1fcMiB", bytes / 1024^2)))
+    }
+    else {
+        return(strtrim(sprintf("%31.1fcGiB", bytes / 1024^3)))
+    }
+}
+end
+
+* ---------------------------------------------------------------------
 * Aux functions
 
 * Delete all scalar, matrices, mata objects, which are persistent across
@@ -484,6 +1111,8 @@ program clean_exit
     cap scalar drop __sparquet_if
     cap scalar drop __sparquet_nread
     cap scalar drop __sparquet_multi
+    cap scalar drop __sparquet_nbytes
+    cap scalar drop __sparquet_ngroup
     cap scalar drop __sparquet_nrow
     cap scalar drop __sparquet_ncol
     cap scalar drop __sparquet_strscan
@@ -492,14 +1121,25 @@ program clean_exit
     cap scalar drop __sparquet_lowlevel
     cap scalar drop __sparquet_fixedlen
     cap scalar drop __sparquet_rg_size
+    cap scalar drop __sparquet_chunkbytes
     cap scalar drop __sparquet_threads
     cap scalar drop __sparquet_infrom
     cap scalar drop __sparquet_into
+    cap scalar drop __sparquet_progress
+    cap scalar drop __sparquet_check
+
     cap matrix drop __sparquet_coltypes
+    cap matrix drop __sparquet_rawtypes
     cap matrix drop __sparquet_colix
+    cap matrix drop __sparquet_rowgix
+
+    cap mata: mata drop __sparquet_rawtypes
+    cap mata: mata drop __sparquet_coltypes
     cap mata: mata drop __sparquet_colix
     cap mata: mata drop __sparquet_colnames
     cap mata: mata drop __sparquet_varnames
+    cap mata: mata drop __sparquet_rowgix
+    cap mata: mata drop __sparquet_filenames
 end
 
 * Expand matsize if need be
@@ -513,8 +1153,12 @@ program check_matsize
             di as err                                                        ///
                 _n(1) "{bf:# variables > matsize (`nvars' > `c(matsize)').}" ///
                 _n(2) "    {stata set matsize `=`nvars''}"                   ///
-                _n(2) "{bf:failed. Try setting matsize manually.}"
-            exit 908
+                _n(2) "{bf:failed. Will use mata-based workaround. Performance might suffer sharply.}"
+            // di as err                                                        ///
+            //     _n(1) "{bf:# variables > matsize (`nvars' > `c(matsize)').}" ///
+            //     _n(2) "    {stata set matsize `=`nvars''}"                   ///
+            //     _n(2) "{bf:failed. Try setting matsize manually.}"
+            // exit 908
         }
     }
 end

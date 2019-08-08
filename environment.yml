@@ -3,6 +3,6 @@ channels:
     - conda-forge
 dependencies:
     - arrow-cpp
-    - parquet-cpp
     - boost
-    - gcc
+    - parquet-cpp
+    - gxx_linux-64

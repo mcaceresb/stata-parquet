@@ -1,4 +1,5 @@
 #define BUF_MAX 4096
+#define SPARQUET_VERSION "0.6.3"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -42,6 +43,58 @@ void sf_running_timer (clock_t *timer, const char *msg)
     sf_printf (msg);
     sf_printf (" (%.2f sec).\n", diff);
     *timer = clock();
+}
+
+std::ifstream::pos_type filesize(const char* filename)
+{
+    std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+    return in.tellg();
+}
+
+void sf_running_progress_read (
+    clock_t *timer,
+    clock_t *stimer,
+    ST_double progress,
+    int64_t r,
+    int64_t nrow_groups,
+    int64_t j,
+    int64_t ncol,
+    int64_t i,
+    int64_t nobs,
+    ST_double pct)
+{
+    ST_double diff  = (ST_double) (clock() - *timer) / CLOCKS_PER_SEC;
+    ST_double sdiff = (ST_double) (clock() - *stimer) / CLOCKS_PER_SEC;
+
+    if ( sdiff < progress )
+        return;
+
+    *stimer = clock();
+    sf_printf("\tReading: %.1f%%, %.1fs (rg %ld / %ld > col %ld / %ld > obs %ld / %ld)\n",
+              pct, diff, r, nrow_groups, j, ncol, i, nobs);
+
+}
+
+void sf_running_progress_write (
+    clock_t *timer,
+    clock_t *stimer,
+    ST_double progress,
+    int64_t j,
+    int64_t ncol,
+    int64_t i,
+    int64_t nobs,
+    ST_double pct)
+{
+    ST_double diff  = (ST_double) (clock() - *timer) / CLOCKS_PER_SEC;
+    ST_double sdiff = (ST_double) (clock() - *stimer) / CLOCKS_PER_SEC;
+
+    if ( sdiff < progress )
+        return;
+
+    *stimer = clock();
+    sf_printf("\tWriting: %.1f%%, %.1fs (col %ld / %ld > obs %ld / %ld)\n",
+              pct, diff, j, ncol, i, nobs);
+
 }
 
 #define SPARQUET_CHAR(cvar, len)    \

@@ -1,6 +1,68 @@
 Change Log
 ==========
 
+## parquet-0.6.3 (2019-08-08)
+
+### Enhancements
+
+- Adds progress() indicator to `parquet write/save` (still not sure
+  how to make it show 100% synchronously).
+
+## parquet-0.6.2 (2019-08-05)
+
+### Enhancements
+
+- `environment.yml` now pulls from `conda-forge`. Hence this
+  also updates `LogicalType::None` to `ConvertedType::NONE` and
+  `set_num_threads` to `set_use_threads` for arrow-cpp version 0.14
+
+## parquet-0.6.1 (2019-07-31)
+
+### Bug fixes
+
+- Fixes tests so they run even if python hive creation fails.
+- Updated install instructions in README.
+
+## parquet-0.6.0 (2019-07-31)
+
+### Bug fixes
+
+- Fixes install script and instructions to be compatible with latest
+  conda version and corresponding packages.
+
+## parquet-0.5.6 (2019-02-12)
+
+### Enhancements
+
+- Much faster read times with a relatively large number of variables.
+  Previous versions allocated the number of observations and then the
+  columns in Stata. Doing the reverse is orders of magnitudes faster.
+
+## parquet-0.5.5 (2019-02-12)
+
+### Features
+
+- `progress(x)` option displays progress every `x` seconds.
+
+## parquet-0.5.4 (2019-02-09)
+
+### Features
+
+- `parquet desc` allows the user to glean the contents of a parquet file.
+
+## parquet-0.5.3 (2019-02-08)
+
+### Features
+
+- Closes #17. `parquet use, rg()` allows the user to specify the row
+  groups to read.  For parquet datasets, each dataset in the folder is a
+  group.
+
+### Enhancements
+
+- If fewer observations are read than the number expected, make a note
+  of it and only keep as many observations as were read.
+
 ## parquet-0.5.2 (2019-01-30)
 
 ### Features

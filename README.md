@@ -7,7 +7,7 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.5.2 30Jan2019` | [Installation](#installation) | [Usage](#usage) | [Examples](#examples)
+`version 0.6.3 08Aug2019` | [Installation](#installation) | [Usage](#usage) | [Examples](#examples)
 
 Installation
 ------------
@@ -20,20 +20,21 @@ You need to first install:
 
 ### Installation with Conda
 
-The easiest way to do that is via `conda` (see [here](https://conda.io/docs/user-guide/install/index.html) for instructions on installing Anaconda):
+The only currently tested way to install this software is via `conda` (see [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) for installation instructions; most recent plugin installation and tests were conducted using `conda 4.7.10` from Miniconda):
+
 ```bash
 git clone https://github.com/mcaceresb/stata-parquet
 cd stata-parquet
 conda env create -f environment.yml
-source activate stata-parquet
+conda activate stata-parquet
 
-make GCC=${CONDA_PREFIX}/bin/g++ UFLAGS=-std=c++11 INCLUDE=${CONDA_PREFIX}/include LIBS=${CONDA_PREFIX}/lib all
+make GCC=${CONDA_PREFIX}/bin/x86_64-conda_cos6-linux-gnu-g++ UFLAGS=-std=c++11 INCLUDE=${CONDA_PREFIX}/include LIBS=${CONDA_PREFIX}/lib all
 stata -b "net install parquet, from(${PWD}/build) replace"
 ```
 
 ### Building Arrow/Parquet Manually
 
-If you don't want to use Conda, you can also build Apache Arrow and Apache Parquet manually.
+If you don't want to use Conda, you can try build Apache Arrow and Apache Parquet manually (__*NOTE:*__ This is untested with the most recent version of the plugin).
 
 1. [Install dependencies for Arrow and Parquet](https://github.com/apache/arrow/tree/master/cpp#system-setup). On Ubuntu/Debian, you can use:
 
@@ -73,7 +74,7 @@ If you don't want to use Conda, you can also build Apache Arrow and Apache Parqu
     ```bash
     git clone https://github.com/mcaceresb/stata-parquet
     cd stata-parquet
-    make all
+    make all UFLAGS=-std=c++11
     stata -b "net install parquet, from(${PWD}/build) replace"
     ```
 
@@ -85,7 +86,7 @@ Usage
 Activate the Conda environment with
 
 ```
-source activate stata-parquet
+conda activate stata-parquet
 ```
 
 Then be sure to start Stata via
@@ -133,11 +134,14 @@ xstata
 
 ### Examples
 
-`parquet save` and `parquet use` will save and load datasets in Parquet format, respectively. For example:
+`parquet save` and `parquet use` will save and load datasets in Parquet
+format, respectively. `parquet desc` will describe the contents of a
+parquet dataset. For example:
 
 ```stata
 sysuse auto, clear
 parquet save auto.parquet, replace
+parquet desc auto.parquet
 parquet use auto.parquet, clear
 desc
 
@@ -145,7 +149,16 @@ parquet use price make gear_ratio using auto.parquet, clear in(10/20)
 parquet save gear_ratio make using auto.parquet in 5/6 if price > 5000, replace
 ```
 
-Note that the `if` clause is not supported by `parquet use`.
+Note that the `if` clause is not supported by `parquet use`. To test the
+plugin works as expected, run `do build/parquet_tests.do` from Stata. To
+also test the plugin correctly reads `hive` format datasets, run
+
+```
+conda install -n stata-parquet pandas numpy fastparquet
+conda activate stata-parquet
+```
+
+Then, from Stata, `do build/parquet_tests.do python`
 
 Limitations
 -----------
@@ -163,14 +176,8 @@ TODO
 
 Some features that ought to be implemented:
 
-- [ ] `parquet desc`
 - [ ] Option `skip` for columns that are in non-readable formats?
-- [X] `parquet use` in range for low-level reader.
-- [X] `parquet use` in range for high-level reader (though not as efficient).
-- [X] Read regular missing values.
 - [X] Write regular missing values (high-level only).
-- [X] No variables (raise error).
-- [X] No obs (raise error).
 
 Some features that might not be implementable, but the user should be
 warned about them:

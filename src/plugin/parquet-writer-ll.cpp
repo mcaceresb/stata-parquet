@@ -19,7 +19,6 @@ ST_retcode sf_ll_write_varlist(
     SPARQUET_CHAR(vscalar, 32);
     SPARQUET_CHAR(vstr, strbuffer);
 
-
     int64_t in1 = SF_in1();
     int64_t in2 = SF_in2();
     int64_t N = in2 - in1 + 1;
@@ -103,6 +102,7 @@ ST_retcode sf_ll_write_varlist(
         // ----------
 
         // TODO: Logical type is basically format?
+        // TODO: Logical type vs Converted type?
         for (j = 0; j < ncol; j++) {
             vtype = vtypes[j];
             if ( vtype == -1 ) {
@@ -111,7 +111,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::BOOLEAN,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -121,7 +121,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::INT32,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -131,7 +131,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::INT32,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -141,7 +141,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::FLOAT,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -151,7 +151,7 @@ ST_retcode sf_ll_write_varlist(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::DOUBLE,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -162,7 +162,7 @@ ST_retcode sf_ll_write_varlist(
                             vnames[j].c_str(),
                             Repetition::REQUIRED,
                             Type::FIXED_LEN_BYTE_ARRAY,
-                            LogicalType::NONE,
+                            ConvertedType::NONE,
                             vtype
                         )
                     );
@@ -173,7 +173,7 @@ ST_retcode sf_ll_write_varlist(
                             vnames[j].c_str(),
                             Repetition::OPTIONAL,
                             Type::BYTE_ARRAY,
-                            LogicalType::NONE
+                            ConvertedType::NONE
                         )
                     );
                 }
@@ -329,11 +329,11 @@ ST_retcode sf_ll_write_varlist(
         }
 
         if ( warn_extended > 0 ) {
-            sf_printf("Warning: %ld extended missing values coerced to NaN.\n", warn_extended);
+            sf_printf("Warning: %ld extended missing values coerced to NULL.\n", warn_extended);
         }
         sf_running_timer (&timer, "Wrote data from memory");
     } catch (const std::exception& e) {
-        sf_errprintf("Parquet read error: %s\n", e.what());
+        sf_errprintf("Parquet write error: %s\n", e.what());
         return(-1);
     }
 
@@ -446,6 +446,7 @@ ST_retcode sf_ll_write_varlist_if(
         // ----------
 
         // TODO: Logical type is basically format?
+        // TODO: Logical type vs Converted type?
         for (j = 0; j < ncol; j++) {
             vtype = vtypes[j];
             if ( vtype == -1 ) {
@@ -454,7 +455,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::BOOLEAN,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -464,7 +465,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::INT32,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -474,7 +475,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::INT32,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -484,7 +485,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::FLOAT,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -494,7 +495,7 @@ ST_retcode sf_ll_write_varlist_if(
                         vnames[j].c_str(),
                         Repetition::REQUIRED,
                         Type::DOUBLE,
-                        LogicalType::NONE
+                        ConvertedType::NONE
                     )
                 );
             }
@@ -505,7 +506,7 @@ ST_retcode sf_ll_write_varlist_if(
                             vnames[j].c_str(),
                             Repetition::REQUIRED,
                             Type::FIXED_LEN_BYTE_ARRAY,
-                            LogicalType::NONE,
+                            ConvertedType::NONE,
                             vtype
                         )
                     );
@@ -516,7 +517,7 @@ ST_retcode sf_ll_write_varlist_if(
                             vnames[j].c_str(),
                             Repetition::OPTIONAL,
                             Type::BYTE_ARRAY,
-                            LogicalType::NONE
+                            ConvertedType::NONE
                         )
                     );
                 }
@@ -686,11 +687,11 @@ ST_retcode sf_ll_write_varlist_if(
         }
 
         if ( warn_extended > 0 ) {
-            sf_printf("Warning: %ld extended missing values coerced to NaN.\n", warn_extended);
+            sf_printf("Warning: %ld extended missing values coerced to NULL.\n", warn_extended);
         }
         sf_running_timer (&timer, "Wrote data from memory");
     } catch (const std::exception& e) {
-        sf_errprintf("Parquet read error: %s\n", e.what());
+        sf_errprintf("Parquet write error: %s\n", e.what());
         return(-1);
     }
 

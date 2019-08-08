@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.5.2 30Jan2019}{...}
+{* *! version 0.6.3 08Aug2019}{...}
 {viewerdialog parquet "dialog parquet"}{...}
 {vieweralsosee "[R] parquet" "mansection R parquet"}{...}
 {viewerjumpto "Syntax" "parquet##syntax"}{...}
@@ -15,11 +15,50 @@
 {marker syntax}{...}
 {title:Syntax}
 
-{p 8 15 2}
-{cmd:parquet} read {cmd:,} [{opt clear} {it:{help parquet##parquet_options:options}}]
+{pstd}
+Read a parquet file into memory:
 
 {p 8 15 2}
-{cmd:parquet} write {cmd:,} [{opt replace} {it:{help parquet##parquet_options:options}}]
+{cmd:parquet} use
+{it:{help filename}}
+{cmd:,} [{opt clear} {it:{help parquet##parquet_options:options}}]
+
+{p 8 15 2}
+{cmd:parquet} use
+[{varlist}]
+{cmd:using}
+{it:{help filename}}
+{cmd:,} [{opt clear} {it:{help parquet##parquet_options:options}}]
+
+{pstd}
+Save data in memory to a parquet file in disk:
+
+{p 8 15 2}
+{cmd:parquet} save
+{it:{help filename}}
+{cmd:,} [{opt replace} {it:{help parquet##parquet_options:options}}]
+
+{p 8 15 2}
+{cmd:parquet} save
+[{varlist}]
+{ifin}
+{cmd:using}
+{cmd:,} [{opt replace} {it:{help parquet##parquet_options:options}}]
+
+{pstd}
+Quick glean the contents of a parquet file or dataset:
+
+{p 8 15 2}
+{cmd:parquet} desc
+{it:{help filename}}
+{cmd:,} [{it:{help parquet##parquet_options:options}}]
+
+{p 8 15 2}
+{cmd:parquet} desc
+[{varlist}]
+{cmd:using}
+{it:{help filename}}
+{cmd:,} [{it:{help parquet##parquet_options:options}}]
 
 {synoptset 18 tabbed}{...}
 {marker parquet_options}{...}
@@ -29,6 +68,10 @@
 {synopt :{opt clear}} Clear the data in memory.
 {p_end}
 {synopt :{opt in(from/to)}} Import observations in range.
+{p_end}
+{synopt :{opth rg(numlist)}} Row groups to read. {opt in()} is defined relative to the subset of row groups to be read.
+{p_end}
+{synopt :{opth progress(real)}} Display progress every x seconds.
 {p_end}
 {synopt :{opt nostrscan}} Do not pre-scan data for string width; falls back to {opt strbuffer}.
 {p_end}
@@ -49,6 +92,14 @@
 {synopt :{opt lowlevel}} Use the low-level writer instead of the high-level writer.
 {p_end}
 
+{syntab :Describe}
+{synopt :{opt in(from/to)}} Scan observations in range.
+{p_end}
+{synopt :{opth rg(numlist)}} Row groups to scan. {opt in()} is defined relative to the subset of row groups to be read.
+{p_end}
+{synopt :{bf:strscan[(#)]}} Scan strings for max width. Default behavior scans every row.
+{p_end}
+
 {p2colreset}{...}
 {p 4 6 2}
 
@@ -65,6 +116,7 @@ in Stata for Unix (Linux).
 
 {phang2}{cmd:. sysuse auto}{p_end}
 {phang2}{cmd:. parquet save auto.parquet, replace}{p_end}
+{phang2}{cmd:. parquet desc auto.parquet}{p_end}
 {phang2}{cmd:. parquet use auto.parquet,  clear}{p_end}
 {phang2}{cmd:. compress}{p_end}
 {phang2}{cmd:. desc}{p_end}

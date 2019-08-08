@@ -10,7 +10,7 @@
 ST_retcode sf_ll_shape_multi(const char *flist, const int debug)
 {
     ST_retcode rc = 0;
-    int64_t nrow = 0, ncol = 0, nfiles = 0, fnrow, fncol;
+    int64_t nrow = 0, ncol = 0, nfiles = 0, nbytes = 0, fnrow, fncol;
     SPARQUET_CHAR(vscalar, 32);
 
     try {
@@ -18,8 +18,8 @@ ST_retcode sf_ll_shape_multi(const char *flist, const int debug)
         std::shared_ptr<parquet::FileMetaData> file_metadata;
 
         std::string fname;
-        std::ifstream fstream;
-        fstream.open(flist);
+        std::ifstream fstream (flist);
+        // fstream.open(flist);
 
         if ( fstream.is_open() ) {
             while ( std::getline(fstream, fname) ) {
@@ -39,6 +39,7 @@ ST_retcode sf_ll_shape_multi(const char *flist, const int debug)
                     ncol = fncol;
                 }
                 nrow += fnrow;
+                nbytes += filesize(fname.c_str());
             }
             fstream.close();
         }
@@ -51,8 +52,15 @@ ST_retcode sf_ll_shape_multi(const char *flist, const int debug)
 
         memcpy(vscalar, "__sparquet_nrow", 15);
         if ( (rc = SF_scal_save(vscalar, (ST_double) nrow)) ) goto exit;
+
         memcpy(vscalar, "__sparquet_ncol", 15);
         if ( (rc = SF_scal_save(vscalar, (ST_double) ncol)) ) goto exit;
+
+        memcpy(vscalar, "__sparquet_ngroup", 17);
+        if ( (rc = SF_scal_save(vscalar, (ST_double) nfiles)) ) goto exit;
+
+        memcpy(vscalar, "__sparquet_nbytes", 17);
+        if ( (rc = SF_scal_save(vscalar, (ST_double) nbytes)) ) goto exit;
 
     } catch (const std::exception& e) {
         sf_errprintf("Parquet read error: %s\n", e.what());
@@ -144,6 +152,7 @@ exit:
 //
 // matrices
 //     __sparquet_coltypes
+//     __sparquet_rawtypes
 //     __sparquet_colix
 // scalars
 //     __sparquet_strscan
@@ -170,6 +179,7 @@ ST_retcode sf_ll_coltypes_multi(
     --infrom; --into;
 
     int64_t vtypes[ncol];
+    int64_t rtypes[ncol];
     int64_t colix[ncol];
     int64_t obs[ncol];
     if ( (rc = sf_matrix_int("__sparquet_colix", 16, ncol, colix)) ) any_rc = rc;
@@ -177,7 +187,7 @@ ST_retcode sf_ll_coltypes_multi(
         --colix[j];
 
     for (j = 0; j < ncol; j++)
-        obs[j] = vtypes[j] = 0;
+        obs[j] = vtypes[j] = rtypes[j] = 0;
 
     if ( any_rc ) {
         rc = any_rc;
@@ -211,6 +221,7 @@ ST_retcode sf_ll_coltypes_multi(
 
                     switch (descr->physical_type()) {
                         case Type::BOOLEAN:    // byte
+                            rtypes[j] = 1;
                             if ( nfiles == 0 ) {
                                 vtypes[j] = -1;
                             }
@@ -221,6 +232,7 @@ ST_retcode sf_ll_coltypes_multi(
                             }
                             break;
                         case Type::INT32:      // long
+                            rtypes[j] = 2;
                             if ( nfiles == 0 ) {
                                 vtypes[j] = -3;
                             }
@@ -231,6 +243,7 @@ ST_retcode sf_ll_coltypes_multi(
                             }
                             break;
                         case Type::INT64:      // double
+                            rtypes[j] = 3;
                             if ( nfiles == 0 ) {
                                 vtypes[j] = -5;
                             }
@@ -241,10 +254,12 @@ ST_retcode sf_ll_coltypes_multi(
                             }
                             break;
                         case Type::INT96:
+                            rtypes[j] = 4;
                             sf_errprintf("96-bit integers not implemented.\n");
                             rc = 17101;
                             goto exit;
                         case Type::FLOAT:      // float
+                            rtypes[j] = 5;
                             if ( nfiles == 0 ) {
                                 vtypes[j] = -4;
                             }
@@ -255,6 +270,7 @@ ST_retcode sf_ll_coltypes_multi(
                             }
                             break;
                         case Type::DOUBLE:     // double
+                            rtypes[j] = 6;
                             if ( nfiles == 0 ) {
                                 vtypes[j] = -5;
                             }
@@ -265,6 +281,7 @@ ST_retcode sf_ll_coltypes_multi(
                             }
                             break;
                         case Type::BYTE_ARRAY: // str#, strL
+                            rtypes[j] = 7;
                             // vtypes[j] = SV_missval;
                             // Scan longest string length
                             if ( strscan > infrom ) {
@@ -299,6 +316,7 @@ ST_retcode sf_ll_coltypes_multi(
                             }
                             break;
                         case Type::FIXED_LEN_BYTE_ARRAY: // str#, strL
+                            rtypes[j] = 8;
                             if ( nfiles == 0 ) {
                                 vtypes[j] = descr->type_length();
                             }
@@ -323,6 +341,11 @@ ST_retcode sf_ll_coltypes_multi(
         memcpy(vmatrix, "__sparquet_coltypes", 19);
         for (j = 0; j < ncol; j++) {
             if ( (rc = SF_mat_store(vmatrix, 1, j + 1, vtypes[j])) ) goto exit;
+        }
+
+        memcpy(vmatrix, "__sparquet_rawtypes", 19);
+        for (j = 0; j < ncol; j++) {
+            if ( (rc = SF_mat_store(vmatrix, 1, j + 1, rtypes[j])) ) goto exit;
         }
 
     } catch (const std::exception& e) {
