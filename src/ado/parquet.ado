@@ -1,4 +1,4 @@
-*! version 0.6.2 05Aug2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.6.3 08Aug2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes
@@ -21,6 +21,7 @@
 capture program drop parquet
 program parquet
     gettoken todo 0: 0
+    local todo `todo'
     if ( inlist(`"`todo'"', "read", "use") ) {
         if ( strpos(`"`0'"', "using") ) {
             parquet_read `0'
@@ -45,6 +46,14 @@ program parquet
             parquet_desc using `0'
         }
     }
+    else if ( inlist(`"`todo'"', "version", "" ) ) {
+        which parquet
+        cap noi plugin call parquet_plugin, version `" "'
+        if ( _rc ) {
+            disp as err "({bf:warning}: parquet_plugin internal check failed)"
+        }
+        exit _rc
+    }
     else {
         disp as err `"Unknown sub-comand `todo'"'
         exit 198
@@ -66,7 +75,7 @@ program parquet_read
            clear                 /// clear the data in memory
            verbose               /// verbose
            progress(real 30)     /// progress every x seconds
-           _check(int 10000)     /// check timer every _check obs
+           _check(int 100000)    /// check timer every _check obs
            rg(numlist)           /// read row groups
            ROWGroups(numlist)    /// read row groups
            in(str)               /// read in range
@@ -460,23 +469,30 @@ end
 
 capture program drop parquet_write
 program parquet_write
-    syntax [varlist]         /// varlist to export
-           using/            /// target dataset file
-           [if]              /// export if condition
-           [in],             /// export in range
-    [                        ///
-           progress(real 30) /// progress every x seconds
-           _check(int 10000) /// check timer every _check obs
-           replace           /// replace target file, if it exists
-           verbose           /// verbose
-           rgsize(real 0)    /// row-group size (should be large; default is N by nvars)
-           lowlevel          /// (debugging only) use low-level writer
-           fixedlen          /// (debugging only) export strings as fixed length
+    syntax [varlist]          /// varlist to export
+           using/             /// target dataset file
+           [if]               /// export if condition
+           [in],              /// export in range
+    [                         ///
+           progress(real 30)  /// progress every x seconds
+           _check(int 100000) /// check timer every _check obs
+           replace            /// replace target file, if it exists
+           verbose            /// verbose
+           rgsize(real 0)     /// row-group size (should be large; default is N by nvars)
+           chunkbytes(real 0) /// max number of bytes per column chunk (highlevel oly)
+           lowlevel           /// (debugging only) use low-level writer
+           fixedlen           /// (debugging only) export strings as fixed length
     ]
 
     if ( "`lowlevel'" != "" ) {
         disp as err "{bf:Warning:} Low-level parser should only be used for debugging."
         disp as err "{bf:Warning:} Low-level parser does not adequately write missing values."
+        if ( `rgsize' != 0 ) {
+            disp as err "{bf:Warning:} Option rgsize() ignored with -lowlevel-"
+        }
+        if ( `chunkbytes' != 0 ) {
+            disp as err "{bf:Warning:} Option chunkbytes() ignored with -lowlevel-"
+        }
     }
 
     if ( `progress' <= 0 | `progress' >= . ) {
@@ -491,25 +507,37 @@ program parquet_write
         disp as err "Option -fixedlen- requires option -lowlevel-"
         exit 198
     }
+
     if ( ("`fixedlen'" != "") & ("`lowlevel'" != "") ) {
         disp as txt "Warning: -fixedlen- will pad strings of varying width."
     }
 
-    scalar __sparquet_if        = `"`if'"' != ""
-    scalar __sparquet_verbose   = `"`verbose'"' != ""
-    scalar __sparquet_multi     = 0
-    scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
-    scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
-    scalar __sparquet_rg_size   = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
-    scalar __sparquet_strbuffer = 1
-    scalar __sparquet_ncol      = `:list sizeof varlist'
-    scalar __sparquet_readrg    = 0
-    scalar __sparquet_progress  = `progress'
-    scalar __sparquet_check     = `_check'
-    scalar __sparquet_nbytes    = .
-    scalar __sparquet_ngroup    = .
-    matrix __sparquet_rowgix    = .
-    matrix __sparquet_rawtypes  = .
+    if ( `rgsize' < 0 ) {
+        disp as err "rgsize() must be a positive integer"
+        exit 198
+    }
+
+    if ( `chunkbytes' < 0 ) {
+        disp as err "chunkbytes() must be a positive integer"
+        exit 198
+    }
+
+    scalar __sparquet_if         = `"`if'"' != ""
+    scalar __sparquet_verbose    = `"`verbose'"' != ""
+    scalar __sparquet_multi      = 0
+    scalar __sparquet_lowlevel   = `"`lowlevel'"' != ""
+    scalar __sparquet_fixedlen   = `"`fixedlen'"' != ""
+    scalar __sparquet_rg_size    = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
+    scalar __sparquet_chunkbytes = cond(`chunkbytes', `chunkbytes', `=2^30')
+    scalar __sparquet_strbuffer  = 1
+    scalar __sparquet_ncol       = `:list sizeof varlist'
+    scalar __sparquet_readrg     = 0
+    scalar __sparquet_progress   = `progress'
+    scalar __sparquet_check      = `_check'
+    scalar __sparquet_nbytes     = .
+    scalar __sparquet_ngroup     = .
+    matrix __sparquet_rowgix     = .
+    matrix __sparquet_rawtypes   = .
 
     * Check plugin loaded OK
     * ----------------------
@@ -1093,6 +1121,7 @@ program clean_exit
     cap scalar drop __sparquet_lowlevel
     cap scalar drop __sparquet_fixedlen
     cap scalar drop __sparquet_rg_size
+    cap scalar drop __sparquet_chunkbytes
     cap scalar drop __sparquet_threads
     cap scalar drop __sparquet_infrom
     cap scalar drop __sparquet_into

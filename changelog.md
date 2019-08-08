@@ -1,6 +1,13 @@
 Change Log
 ==========
 
+## parquet-0.6.3 (2019-08-08)
+
+### Enhancements
+
+- Adds progress() indicator to `parquet write/save` (still not sure
+  how to make it show 100% synchronously).
+
 ## parquet-0.6.2 (2019-08-05)
 
 ### Enhancements
