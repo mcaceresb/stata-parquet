@@ -6,7 +6,6 @@
 //     __sparquet_rowgix
 // scalars
 //     __sparquet_ncol
-//     __sparquet_rg_size
 //     __sparquet_threads
 //     __sparquet_into
 //     __sparquet_infrom
@@ -48,7 +47,6 @@ ST_retcode sf_hl_read_varlist(
     tobs   = into - infrom + 1;
     ttot   = ncol * tobs;
     tread  = 0;
-    // tevery = 100000;
 
     _readrg = readrg? readrg: 1;
     int64_t vtypes[ncol];
@@ -87,8 +85,9 @@ ST_retcode sf_hl_read_varlist(
             parquet::arrow::OpenFile(infile, arrow::default_memory_pool(), &reader));
 
         if ( nthreads > 1 ) {
-            // TODO: set_num_threads is deprecated and I should only use
-            // set_use_threads? If so, change option to be binary.
+
+            // TODO version waarning: set_num_threads is deprecated and
+            // I should only use set_use_threads in later versions.
 
             // reader->set_num_threads((int64_t) nthreads);
             reader->set_use_threads(true);
@@ -140,7 +139,12 @@ ST_retcode sf_hl_read_varlist(
             ig = 0;
             for (j = 0; j < ncol; j++) {
                 // vtype = vtypes[j];
-                auto data = tables[r]->column(j)->data();
+
+                // TODO version warning: table->column()->data() maybe got
+                // deprecated? just do table->column() in later versions.
+
+                auto data = tables[r]->column(j);
+                // auto data = tables[r]->column(j)->data();
                 nchunks = data->num_chunks();
                 ix = 0;
                 ic = 0;
