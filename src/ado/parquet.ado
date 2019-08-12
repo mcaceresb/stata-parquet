@@ -1,4 +1,4 @@
-*! version 0.6.3 08Aug2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
+*! version 0.6.4 12Aug2019 Mauricio Caceres Bravo, mauricio.caceres.bravo@gmail.com
 *! Parquet file reader and writer
 
 * Return codes

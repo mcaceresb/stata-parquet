@@ -1,5 +1,5 @@
 #define BUF_MAX 4096
-#define SPARQUET_VERSION "0.6.3"
+#define SPARQUET_VERSION "0.6.4"
 
 #include <stdlib.h>
 #include <stdio.h>

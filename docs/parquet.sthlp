@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.6.3 08Aug2019}{...}
+{* *! version 0.6.4 12Aug2019}{...}
 {viewerdialog parquet "dialog parquet"}{...}
 {vieweralsosee "[R] parquet" "mansection R parquet"}{...}
 {viewerjumpto "Syntax" "parquet##syntax"}{...}
@@ -86,6 +86,8 @@ Quick glean the contents of a parquet file or dataset:
 {synopt :{opt replace}} Replace the target file.
 {p_end}
 {synopt :{opth rgsize(real)}} Use a row group size of {opt rgsize}; ignored with {opt lowlevel}.
+{p_end}
+{synopt :{opth chunkbytes(real)}} Chunk variable column if size exceeds {opt chunkbytes}.
 {p_end}
 {synopt :{opt fixedlen}} Export strings as fixed length; requires option {opt lowlevel}.
 {p_end}
