@@ -77,6 +77,7 @@ test:
 # src/ado/parquet.ado
 # src/parquet.pkg
 # src/plugin/parquet.cpp
+# src/plugin/parquet.h
 # src/stata.toc
 # changelog.md
 

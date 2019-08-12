@@ -19,7 +19,6 @@ ST_retcode sf_ll_write_varlist(
     SPARQUET_CHAR(vscalar, 32);
     SPARQUET_CHAR(vstr, strbuffer);
 
-
     int64_t in1 = SF_in1();
     int64_t in2 = SF_in2();
     int64_t N = in2 - in1 + 1;
@@ -330,7 +329,7 @@ ST_retcode sf_ll_write_varlist(
         }
 
         if ( warn_extended > 0 ) {
-            sf_printf("Warning: %ld extended missing values coerced to NaN.\n", warn_extended);
+            sf_printf("Warning: %ld extended missing values coerced to NULL.\n", warn_extended);
         }
         sf_running_timer (&timer, "Wrote data from memory");
     } catch (const std::exception& e) {
@@ -688,7 +687,7 @@ ST_retcode sf_ll_write_varlist_if(
         }
 
         if ( warn_extended > 0 ) {
-            sf_printf("Warning: %ld extended missing values coerced to NaN.\n", warn_extended);
+            sf_printf("Warning: %ld extended missing values coerced to NULL.\n", warn_extended);
         }
         sf_running_timer (&timer, "Wrote data from memory");
     } catch (const std::exception& e) {

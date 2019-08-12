@@ -121,7 +121,6 @@ ST_retcode sf_ll_read_varlist(
         tobs   = into - infrom + 1;
         ttot   = ncol * tobs;
         tread  = 0;
-        // tevery = 100000;
 
         // Check row groups make sense
         if ( readrg ) {

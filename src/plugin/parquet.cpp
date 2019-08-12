@@ -2,16 +2,16 @@
  * Program: parquet.cpp
  * Author:  Mauricio Caceres Bravo <mauricio.caceres.bravo@gmail.com>
  * Created: Fri Mar  3 19:42:00 EDT 2017
- * Updated: Mon Aug  5 20:05:31 EST 2019
+ * Updated: Mon Aug 12 12:37:23 EST 2019
  * Purpose: Stata plugin to read and write to the parquet file format
  * Note:    See stata.com/plugins for more on Stata plugins
- * Version: 0.6.2
+ * Version: 0.6.4
  *********************************************************************/
 
 /**
  * @file parquet.cpp
  * @author Mauricio Caceres Bravo
- * @date 05 Aug 2019
+ * @date 12 Aug 2019
  * @brief Stata plugin
  *
  * This file should only ever be called from parquet.ado
@@ -56,6 +56,7 @@
 //     __sparquet_nread
 //     __sparquet_strbuffer
 //     __sparquet_rg_size
+//     __sparquet_chunkbytes
 //     __sparquet_multi
 //     __sparquet_verbose
 //     __sparquet_if
@@ -77,17 +78,12 @@ STDLL stata_call(int argc, char *argv[])
     SPARQUET_CHAR (fname, flength);
     strcpy (fname, argv[1]);
 
-    if ( (rc = sf_scalar_int("__sparquet_strbuffer", 20, &strbuffer)) ) goto exit;
-    if ( (rc = sf_scalar_int("__sparquet_lowlevel",  20, &lowlevel))  ) goto exit;
-    if ( (rc = sf_scalar_int("__sparquet_multi",     16, &multi))     ) goto exit;
-    if ( (rc = sf_scalar_int("__sparquet_verbose",   18, &verbose))   ) goto exit;
-    if ( (rc = sf_scalar_int("__sparquet_if",        13, &ifobs))     ) goto exit;
-
     /**************************************************************************
      * This is the main wrapper. We apply one of:                             *
      *                                                                        *
      *     - check:     Exit with 0 status. This just tests the plugin can be *
      *                  called from Stata without crashing.                   *
+     *     - version:   Print plugin version                                  *
      *                                                                        *
      *     - shape:     (read) Number of rows and columns                     *
      *     - colnames:  (read) Put column names into file                     *
@@ -104,7 +100,18 @@ STDLL stata_call(int argc, char *argv[])
     if ( strcmp(todo, "check") == 0 ) {
         goto exit;
     }
-    else if ( strcmp(todo, "shape") == 0 ) {
+    else if ( strcmp(todo, "version") == 0 ) {
+        sf_printf("(note: parquet_plugin v%s successfully loaded)\n", SPARQUET_VERSION);
+        goto exit;
+    }
+
+    if ( (rc = sf_scalar_int("__sparquet_strbuffer", 20, &strbuffer)) ) goto exit;
+    if ( (rc = sf_scalar_int("__sparquet_lowlevel",  20, &lowlevel))  ) goto exit;
+    if ( (rc = sf_scalar_int("__sparquet_multi",     16, &multi))     ) goto exit;
+    if ( (rc = sf_scalar_int("__sparquet_verbose",   18, &verbose))   ) goto exit;
+    if ( (rc = sf_scalar_int("__sparquet_if",        13, &ifobs))     ) goto exit;
+
+    if ( strcmp(todo, "shape") == 0 ) {
         if ( multi ) {
             sf_printf_debug(DEBUG, "\t(debug shape multi)\n");
             if ( (rc = sf_ll_shape_multi(fname, DEBUG)) ) goto exit;

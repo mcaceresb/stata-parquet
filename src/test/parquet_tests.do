@@ -208,6 +208,19 @@ set rmsg off
 *
 * !rm -f test.dta
 * !rm -f test.parquet
+*
+* clear
+* set obs 60000000
+* gen double tast = .
+* gen str36  test = "                                    "
+* parquet save test.parquet, replace progress(1)
+* parquet save test.parquet, replace progress(1)
+* parquet desc test.parquet
+* parquet desc test.parquet, strscan(.)
+* drop tast
+* parquet save test.parquet, replace progress(1)
+* parquet save test.parquet, replace progress(1)
+* !rm -f test.parquet
 
 * Describe
 * --------

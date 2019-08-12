@@ -1,6 +1,22 @@
 Change Log
 ==========
 
+## parquet-0.6.4 (2019-08-12)
+
+### Bug fixes
+
+- Chunks arrays in high-level writer so memory limit is not reached
+  (see option chunkbytes(); default si `2^30`). This fix is compatible
+  with the arrow lib version in conda; `dev-chunked` is compatible with
+  the github version.
+
+## parquet-0.6.3 (2019-08-08)
+
+### Enhancements
+
+- Adds progress() indicator to `parquet write/save` (still not sure
+  how to make it show 100% synchronously).
+
 ## parquet-0.6.2 (2019-08-05)
 
 ### Enhancements
