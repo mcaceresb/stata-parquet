@@ -4,5 +4,5 @@ channels:
 dependencies:
     - arrow-cpp=0.14.1
     - boost=1.70.0
-    - parquet-cpp=1.4.1
+    - parquet-cpp=1.5.1
     - gxx_linux-64=7.3.0
