@@ -17,10 +17,11 @@ You need to first install:
 - The Apache Arrow C++ library.
 - The GNU Compiler Collection
 - The Boost C++ libraries.
+- Google's logging library (google-glog)
 
 ### Installation with Conda
 
-The only currently tested way to install this software is via `conda` (see [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) for installation instructions; most recent plugin installation and tests were conducted using `conda 4.7.10` from Miniconda):
+First, intall Google's logging library (`libgoogle-glog-dev` in Ubuntu). Then the only tested way to install this software is via `conda` (see [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) for installation instructions; most recent plugin installation and tests were conducted using Miniconda3 for Python 3.8, version `23.3.1`):
 
 ```bash
 git clone https://github.com/mcaceresb/stata-parquet
@@ -28,55 +29,11 @@ cd stata-parquet
 conda env create -f environment.yml
 conda activate stata-parquet
 
-make GCC=${CONDA_PREFIX}/bin/x86_64-conda_cos6-linux-gnu-g++ UFLAGS=-std=c++11 INCLUDE=${CONDA_PREFIX}/include LIBS=${CONDA_PREFIX}/lib all
+make SPI=3.0 GCC=${CONDA_PREFIX}/bin/x86_64-conda_cos6-linux-gnu-g++ UFLAGS=-std=c++11 INCLUDE=${CONDA_PREFIX}/include LIBS=${CONDA_PREFIX}/lib all
 stata -b "net install parquet, from(${PWD}/build) replace"
 ```
 
-### Building Arrow/Parquet Manually
-
-If you don't want to use Conda, you can try build Apache Arrow and Apache Parquet manually (__*NOTE:*__ This is untested with the most recent version of the plugin).
-
-1. [Install dependencies for Arrow and Parquet](https://github.com/apache/arrow/tree/master/cpp#system-setup). On Ubuntu/Debian, you can use:
-
-    ```bash
-    sudo apt-get install        \
-        autoconf                \
-        build-essential         \
-        cmake                   \
-        libboost-dev            \
-        libboost-filesystem-dev \
-        libboost-regex-dev      \
-        libboost-system-dev     \
-        python                  \
-        bison                   \
-        flex
-    ```
-
-2. Build Arrow and Parquet:
-
-    ```bash
-    git clone https://github.com/apache/arrow.git
-    cd arrow/cpp
-    # Not sure if this is generally necessary; may be due to my firewall
-    # This changes the Apache mirror to the one at utah.edu
-    sed -i 's$http://archive.apache.org/dist/thrift$http://apache.cs.utah.edu/thrift$g' cmake_modules/ThirdpartyToolchain.cmake
-    mkdir release
-    cd release
-    cmake -DARROW_PARQUET=ON  ..
-    make arrow
-    sudo make install
-    make parquet
-    sudo make install
-    ```
-
-3. Build/Install `stata-parquet`:
-
-    ```bash
-    git clone https://github.com/mcaceresb/stata-parquet
-    cd stata-parquet
-    make all UFLAGS=-std=c++11
-    stata -b "net install parquet, from(${PWD}/build) replace"
-    ```
+Note: If you have Stata 14.0 or earlier you will want to use `SPI=2.0` instead.
 
 Usage
 -----
@@ -100,30 +57,6 @@ to enter the `LD_LIBRARY_PATH` every time (make sure to replace
 
 ```bash
 export LD_LIBRARY_PATH=${CONDA_PREFIX}/lib:$LD_LIBRARY_PATH
-```
-
-Then just start Stata with
-
-```
-xstata
-```
-
-
-### Usage with Manual Installation
-
-Prepend the Arrow/Parquet installation directory to `LD_LIBRARY_PATH`. This
-needs to be set when Stata starts so that Stata can find the Arrow/Parquet
-dependencies. For me, this directory was `/usr/local/lib`.
-
-```bash
-LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH xstata
-```
-
-Alternatively, you could add the following line to your `~/.bashrc` to not have
-to enter the `LD_LIBRARY_PATH` every time:
-
-```bash
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ```
 
 Then just start Stata with
