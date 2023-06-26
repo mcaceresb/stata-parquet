@@ -35,6 +35,8 @@ stata -b "net install parquet, from(${PWD}/build) replace"
 
 Note: If you have Stata 14.0 or earlier you will want to use `SPI=2.0` instead.
 
+Warning: The plugin uses a possibly dated version of parquet (specifically `parquet-cpp` version `1.5.1` and `arrow-cpp` version `0.14.1`).
+
 Usage
 -----
 
