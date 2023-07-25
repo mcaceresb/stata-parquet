@@ -109,6 +109,7 @@ TODO
 Some features that ought to be implemented:
 
 - [ ] Option `skip` for columns that are in non-readable formats?
+- [ ] Option to specify compression type
 - [X] Write regular missing values (high-level only).
 
 Some features that might not be implementable, but the user should be
