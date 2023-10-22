@@ -5,6 +5,7 @@
 // scalars
 //     __sparquet_ncol
 //     __sparquet_fixedlen
+//     __sparquet_compression
 ST_retcode sf_ll_write_varlist(
     const char *fname,
     const char *fcols,
@@ -22,9 +23,10 @@ ST_retcode sf_ll_write_varlist(
     int64_t in1 = SF_in1();
     int64_t in2 = SF_in2();
     int64_t N = in2 - in1 + 1;
-    int64_t vtype, i, j, ncol = 1, fixedlen = 0;
+    int64_t vtype, i, j, compcode = 1, ncol = 1, fixedlen = 0;
     int64_t warn_extended = 0;
     int16_t definition_level = 1;
+    parquet::Compression::type compression;
 
     std::string line;
     std::ifstream fstream;
@@ -46,8 +48,28 @@ ST_retcode sf_ll_write_varlist(
     // Get column and type info from Stata
     // -----------------------------------
 
-    if ( (rc = sf_scalar_int("__sparquet_fixedlen", 19, &fixedlen)) ) any_rc = rc;
-    if ( (rc = sf_scalar_int("__sparquet_ncol",     15, &ncol))     ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_fixedlen",    19, &fixedlen))) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_ncol",        15, &ncol))    ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_compression", 22, &compcode))) any_rc = rc;
+
+    switch (compcode) {
+        case 0:
+            compression = parquet::Compression::UNCOMPRESSED;
+        case 1:
+            compression = parquet::Compression::SNAPPY;
+        case 2:
+            compression = parquet::Compression::GZIP;
+        case 3:
+            compression = parquet::Compression::LZO;
+        case 4:
+            compression = parquet::Compression::BROTLI;
+        case 5:
+            compression = parquet::Compression::LZ4;
+        case 6:
+            compression = parquet::Compression::ZSTD;
+        default:
+            compression = parquet::Compression::SNAPPY;
+    }
 
     sf_printf_debug(debug, "# columns: %ld\n", ncol);
 
@@ -193,7 +215,7 @@ ST_retcode sf_ll_write_varlist(
             GroupNode::Make("schema", Repetition::REQUIRED, fields)
         );
 
-        builder.compression(parquet::Compression::SNAPPY);
+        builder.compression(compression);
         props = builder.build();
 
         file_writer = parquet::ParquetFileWriter::Open(out_file, schema, props);
@@ -348,6 +370,7 @@ exit:
 // scalars
 //     __sparquet_ncol
 //     __sparquet_fixedlen
+//     __sparquet_compression
 ST_retcode sf_ll_write_varlist_if(
     const char *fname,
     const char *fcols,
@@ -366,9 +389,10 @@ ST_retcode sf_ll_write_varlist_if(
     int64_t in1 = SF_in1();
     int64_t in2 = SF_in2();
     int64_t N = in2 - in1 + 1;
-    int64_t vtype, i, j, ncol = 1, fixedlen = 0;
+    int64_t vtype, i, j, compcode = 1, ncol = 1, fixedlen = 0;
     int64_t warn_extended = 0;
     int16_t definition_level = 1;
+    parquet::Compression::type compression;
 
     std::string line;
     std::ifstream fstream;
@@ -390,8 +414,28 @@ ST_retcode sf_ll_write_varlist_if(
     // Get column and type info from Stata
     // -----------------------------------
 
-    if ( (rc = sf_scalar_int("__sparquet_fixedlen", 19, &fixedlen)) ) any_rc = rc;
-    if ( (rc = sf_scalar_int("__sparquet_ncol",     15, &ncol))     ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_fixedlen",    19, &fixedlen))) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_ncol",        15, &ncol))    ) any_rc = rc;
+    if ( (rc = sf_scalar_int("__sparquet_compression", 22, &compcode))) any_rc = rc;
+
+    switch (compcode) {
+        case 0:
+            compression = parquet::Compression::UNCOMPRESSED;
+        case 1:
+            compression = parquet::Compression::SNAPPY;
+        case 2:
+            compression = parquet::Compression::GZIP;
+        case 3:
+            compression = parquet::Compression::LZO;
+        case 4:
+            compression = parquet::Compression::BROTLI;
+        case 5:
+            compression = parquet::Compression::LZ4;
+        case 6:
+            compression = parquet::Compression::ZSTD;
+        default:
+            compression = parquet::Compression::SNAPPY;
+    }
 
     sf_printf_debug(debug, "# columns: %ld\n", ncol);
 
@@ -537,7 +581,7 @@ ST_retcode sf_ll_write_varlist_if(
             GroupNode::Make("schema", Repetition::REQUIRED, fields)
         );
 
-        builder.compression(parquet::Compression::SNAPPY);
+        builder.compression(compression);
         props = builder.build();
 
         file_writer = parquet::ParquetFileWriter::Open(out_file, schema, props);

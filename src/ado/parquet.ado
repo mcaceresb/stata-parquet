@@ -215,23 +215,24 @@ program parquet_read
     * Initialize scalars
     * ------------------
 
-    scalar __sparquet_if        = 0
-    scalar __sparquet_verbose   = `"`verbose'"' != ""
-    scalar __sparquet_multi     = `"`multi'"' != ""
-    scalar __sparquet_lowlevel  = `"`lowlevel'"' != ""
-    scalar __sparquet_fixedlen  = `"`fixedlen'"' != ""
-    scalar __sparquet_strbuffer = `strbuffer'
-    scalar __sparquet_threads   = `threads'
-    scalar __sparquet_nbytes    = .
-    scalar __sparquet_ngroup    = .
-    scalar __sparquet_nrow      = .
-    scalar __sparquet_ncol      = .
-    scalar __sparquet_nread     = .
-    scalar __sparquet_progress  = `progress'
-    scalar __sparquet_check     = `_check'
-    scalar __sparquet_readrg    = cond(`"`rg'"' == `"none"', 0, `:list sizeof rg')
-    matrix __sparquet_coltypes  = .
-    matrix __sparquet_rawtypes  = .
+    scalar __sparquet_if          = 0
+    scalar __sparquet_verbose     = `"`verbose'"'  != ""
+    scalar __sparquet_multi       = `"`multi'"'    != ""
+    scalar __sparquet_lowlevel    = `"`lowlevel'"' != ""
+    scalar __sparquet_fixedlen    = `"`fixedlen'"' != ""
+    scalar __sparquet_strbuffer   = `strbuffer'
+    scalar __sparquet_threads     = `threads'
+    scalar __sparquet_nbytes      = .
+    scalar __sparquet_ngroup      = .
+    scalar __sparquet_compression = .
+    scalar __sparquet_nrow        = .
+    scalar __sparquet_ncol        = .
+    scalar __sparquet_nread       = .
+    scalar __sparquet_progress    = `progress'
+    scalar __sparquet_check       = `_check'
+    scalar __sparquet_readrg      = cond(`"`rg'"' == `"none"', 0, `:list sizeof rg')
+    matrix __sparquet_coltypes    = .
+    matrix __sparquet_rawtypes    = .
 
     * Check plugin loaded OK
     * ----------------------
@@ -480,6 +481,7 @@ program parquet_write
            verbose            /// verbose
            rgsize(real 0)     /// row-group size (should be large; default is N by nvars)
            chunkbytes(real 0) /// max number of bytes per column chunk (highlevel oly)
+           COMPRESSion(str)   /// compression (only with lowlevel)
            lowlevel           /// (debugging only) use low-level writer
            fixedlen           /// (debugging only) export strings as fixed length
     ]
@@ -493,6 +495,9 @@ program parquet_write
         if ( `chunkbytes' != 0 ) {
             disp as err "{bf:Warning:} Option chunkbytes() ignored with -lowlevel-"
         }
+    }
+    else if ( "`compression'" != "" ) {
+        disp as err "{bf:Warning:} Option compression() ignored without -lowlevel-"
     }
 
     if ( `progress' <= 0 | `progress' >= . ) {
@@ -522,22 +527,41 @@ program parquet_write
         exit 198
     }
 
-    scalar __sparquet_if         = `"`if'"' != ""
-    scalar __sparquet_verbose    = `"`verbose'"' != ""
-    scalar __sparquet_multi      = 0
-    scalar __sparquet_lowlevel   = `"`lowlevel'"' != ""
-    scalar __sparquet_fixedlen   = `"`fixedlen'"' != ""
-    scalar __sparquet_rg_size    = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
-    scalar __sparquet_chunkbytes = cond(`chunkbytes', `chunkbytes', `=2^30')
-    scalar __sparquet_strbuffer  = 1
-    scalar __sparquet_ncol       = `:list sizeof varlist'
-    scalar __sparquet_readrg     = 0
-    scalar __sparquet_progress   = `progress'
-    scalar __sparquet_check      = `_check'
-    scalar __sparquet_nbytes     = .
-    scalar __sparquet_ngroup     = .
-    matrix __sparquet_rowgix     = .
-    matrix __sparquet_rawtypes   = .
+    local compression = trim(upper(`"`compression'"'))
+         if ( `"`compression'"' == "UNCOMPRESSED" ) local compression  0
+    else if ( `"`compression'"' == "SNAPPY"       ) local compression  1
+    else if ( `"`compression'"' == "GZIP"         ) local compression  2
+    else if ( `"`compression'"' == "LZO"          ) local compression  3
+    else if ( `"`compression'"' == "BROTLI"       ) local compression  4 // Added in parquet-cpp 2.3.2
+    else if ( `"`compression'"' == "LZ4"          ) local compression  5 // Added in parquet-cpp 2.3.2
+    else if ( `"`compression'"' == "ZSTD"         ) local compression  6 // Added in parquet-cpp 2.3.2
+    else {
+        if ( `"`compression'"' != "" ) {
+            disp as err `"I don't know compression `compression'; try SNAPPY, GZIP, LZO, BROTLI, LZ4, ZSTD"'
+            exit 198
+        }
+        else {
+            local compression 1
+        }
+    }
+
+    scalar __sparquet_if          = `"`if'"' != ""
+    scalar __sparquet_verbose     = `"`verbose'"' != ""
+    scalar __sparquet_multi       = 0
+    scalar __sparquet_lowlevel    = `"`lowlevel'"' != ""
+    scalar __sparquet_fixedlen    = `"`fixedlen'"' != ""
+    scalar __sparquet_rg_size     = cond(`rgsize', `rgsize', `=_N * `:list sizeof varlist'')
+    scalar __sparquet_chunkbytes  = cond(`chunkbytes', `chunkbytes', `=2^30')
+    scalar __sparquet_strbuffer   = 1
+    scalar __sparquet_ncol        = `:list sizeof varlist'
+    scalar __sparquet_readrg      = 0
+    scalar __sparquet_progress    = `progress'
+    scalar __sparquet_check       = `_check'
+    scalar __sparquet_nbytes      = .
+    scalar __sparquet_ngroup      = .
+    scalar __sparquet_compression = `compression'
+    matrix __sparquet_rowgix      = .
+    matrix __sparquet_rawtypes    = .
 
     * Check plugin loaded OK
     * ----------------------
@@ -723,21 +747,22 @@ program parquet_desc, rclass
     * Initialize scalars
     * ------------------
 
-    scalar __sparquet_if        = 0
-    scalar __sparquet_verbose   = 0
-    scalar __sparquet_multi     = `"`multi'"' != ""
-    scalar __sparquet_lowlevel  = 1
-    scalar __sparquet_fixedlen  = 0
-    scalar __sparquet_strbuffer = 255
-    scalar __sparquet_threads   = 1
-    scalar __sparquet_nbytes    = .
-    scalar __sparquet_ngroup    = .
-    scalar __sparquet_nrow      = .
-    scalar __sparquet_ncol      = .
-    scalar __sparquet_nread     = .
-    scalar __sparquet_readrg    = cond(`"`rg'"' == `"none"', 0, `:list sizeof rg')
-    matrix __sparquet_coltypes  = .
-    matrix __sparquet_rawtypes  = .
+    scalar __sparquet_if          = 0
+    scalar __sparquet_verbose     = 0
+    scalar __sparquet_multi       = `"`multi'"' != ""
+    scalar __sparquet_lowlevel    = 1
+    scalar __sparquet_fixedlen    = 0
+    scalar __sparquet_strbuffer   = 255
+    scalar __sparquet_threads     = 1
+    scalar __sparquet_nbytes      = .
+    scalar __sparquet_ngroup      = .
+    scalar __sparquet_compression = .
+    scalar __sparquet_nrow        = .
+    scalar __sparquet_ncol        = .
+    scalar __sparquet_nread       = .
+    scalar __sparquet_readrg      = cond(`"`rg'"' == `"none"', 0, `:list sizeof rg')
+    matrix __sparquet_coltypes    = .
+    matrix __sparquet_rawtypes    = .
 
     * ----------------------
     * Check plugin loaded OK
@@ -1113,6 +1138,7 @@ program clean_exit
     cap scalar drop __sparquet_multi
     cap scalar drop __sparquet_nbytes
     cap scalar drop __sparquet_ngroup
+    cap scalar drop __sparquet_compression
     cap scalar drop __sparquet_nrow
     cap scalar drop __sparquet_ncol
     cap scalar drop __sparquet_strscan

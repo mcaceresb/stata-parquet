@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 0.6.4 12Aug2019}{...}
+{* *! version 0.6.5 22Oct2023}{...}
 {viewerdialog parquet "dialog parquet"}{...}
 {vieweralsosee "[R] parquet" "mansection R parquet"}{...}
 {viewerjumpto "Syntax" "parquet##syntax"}{...}
@@ -92,6 +92,8 @@ Quick glean the contents of a parquet file or dataset:
 {synopt :{opt fixedlen}} Export strings as fixed length; requires option {opt lowlevel}.
 {p_end}
 {synopt :{opt lowlevel}} Use the low-level writer instead of the high-level writer.
+{p_end}
+{synopt :{opt compression(str)}} Compression: SNAPPY (default), GZIP, LZO, BROTLI, LZ4, ZSTD, UNCOMPRESSED. Only with {opt lowlevel}.
 {p_end}
 
 {syntab :Describe}

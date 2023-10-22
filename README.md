@@ -7,7 +7,7 @@ This package uses the [Apache Arrow](https://github.com/apache/arrow)
 C++ library to read and write parquet files from Stata using plugins.
 Currently this package is only available in Stata for Unix (Linux).
 
-`version 0.6.4 12Aug2019` | [Installation](#installation) | [Usage](#usage) | [Examples](#examples)
+`version 0.6.5 22Oct2023` | [Installation](#installation) | [Usage](#usage) | [Examples](#examples)
 
 Installation
 ------------
@@ -21,7 +21,7 @@ You need to first install:
 
 ### Installation with Conda
 
-First, intall Google's logging library (`libgoogle-glog-dev` in Ubuntu). Then the only tested way to install this software is via `conda` (see [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) for installation instructions; most recent plugin installation and tests were conducted using Miniconda3 for Python 3.8, version `23.3.1`):
+First, intall Google's logging library: `libgoogle-glog-dev` in Ubuntu, `google-glog` in Arch (you may have to link `libglog.so` to `libglog.so.0`), and so on. Then the only tested way to install this software is via `conda` (see [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) for installation instructions; most recent plugin installation and tests were conducted using Miniconda3 for Python 3.8, version `23.3.1`):
 
 ```bash
 git clone https://github.com/mcaceresb/stata-parquet
@@ -31,6 +31,7 @@ conda activate stata-parquet
 
 make SPI=3.0 GCC=${CONDA_PREFIX}/bin/x86_64-conda_cos6-linux-gnu-g++ UFLAGS=-std=c++11 INCLUDE=${CONDA_PREFIX}/include LIBS=${CONDA_PREFIX}/lib all
 stata -b "net install parquet, from(${PWD}/build) replace"
+rm -f stata.log
 ```
 
 Note: If you have Stata 14.0 or earlier you will want to use `SPI=2.0` instead.
